@@ -1,0 +1,23 @@
+FROM node:18-alpine
+
+# Configurar diretório de trabalho
+WORKDIR /app
+
+# Copiar os arquivos do backend
+COPY backend/ ./
+
+# Instalar dependências
+RUN npm install --no-fund
+
+# Criar diretório public e página fallback
+RUN mkdir -p public && \
+    echo '<!DOCTYPE html><html><head><title>Mall Recorrente</title></head><body style="font-family: Arial, sans-serif; text-align: center; padding-top: 50px;"><h1>Mall Recorrente</h1><p>Frontend em desenvolvimento</p><p>Acesse a API em <a href="/api">/api</a></p></body></html>' > public/index.html
+
+# Expor porta
+EXPOSE 5000
+
+# Copiar o arquivo fix-users.js
+COPY backend/fix-users.js .
+
+# Comando para iniciar
+CMD ["sh", "-c", "node fix-users.js && npm start"] 
