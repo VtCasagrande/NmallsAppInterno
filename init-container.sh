@@ -2,6 +2,8 @@
 
 # Definir variáveis de ambiente
 export NODE_ENV=production
+export PORT_BACKEND=5000 # Garantir que o backend use a porta 5000
+export PORT=5000 # Compatibilidade com código existente
 
 # Verificar arquivos e diretórios
 echo "==== Verificando arquivos e diretórios ===="
@@ -14,6 +16,20 @@ if [ ! -d "/app/frontend/build" ]; then
 else
   echo "Diretório build encontrado em /app/frontend/build"
   ls -la /app/frontend/build
+  
+  # Verificar tamanho do index.html
+  FILESIZE=$(stat -c%s "/app/frontend/build/index.html")
+  echo "Tamanho do index.html: $FILESIZE bytes"
+  
+  if [ "$FILESIZE" -lt 500 ]; then
+    echo "AVISO: O arquivo index.html parece incompleto (muito pequeno). Conteúdo:"
+    cat /app/frontend/build/index.html
+    
+    echo "Tentando reconstruir o frontend..."
+    cd /app/frontend
+    npm run build || echo "Falha na reconstrução do frontend"
+    cd /app
+  fi
 fi
 
 # Verificar configuração do nginx
@@ -48,6 +64,13 @@ if [ ! -f "/usr/share/nginx/html/index.html" ]; then
   echo "<html><body><h1>Mall Recorrente</h1><p>Frontend em construção</p></body></html>" > /usr/share/nginx/html/index.html
 else
   echo "index.html encontrado em /usr/share/nginx/html"
+  FILESIZE=$(stat -c%s "/usr/share/nginx/html/index.html")
+  echo "Tamanho do index.html no Nginx: $FILESIZE bytes"
+  
+  if [ "$FILESIZE" -lt 500 ]; then
+    echo "AVISO: Arquivo index.html no Nginx parece incompleto. Conteúdo:"
+    cat /usr/share/nginx/html/index.html
+  fi
 fi
 
 # Iniciar serviços
@@ -70,14 +93,16 @@ if ! pgrep -x "nginx" > /dev/null; then
 else
   echo "Nginx iniciado com sucesso!"
   ps aux | grep nginx
+  echo "Verificando portas em uso:"
+  netstat -tulpn | grep LISTEN
 fi
 
 # Navegar para a pasta do backend
 cd /app/backend
 
 # Iniciar o servidor backend
-echo "Iniciando servidor backend..."
-node src/server.js
+echo "Iniciando servidor backend na porta 5000..."
+PORT_BACKEND=5000 PORT=5000 node src/server.js
 
 # O comando acima (node) já mantém o processo ativo
 

@@ -39,8 +39,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Erro no servidor", error: err.message });
 });
 
-// Porta
-const PORT = process.env.PORT || 5000;
+// Porta - sempre usar 5000 e nunca 80 para evitar conflito com Nginx
+const PORT = process.env.PORT_BACKEND || 5000;
+
+// Verificar se a porta não é 80 para evitar conflito com Nginx
+if (PORT === 80) {
+  console.warn("ATENÇÃO: Porta 80 reservada para o Nginx. Alterando para porta 5000.");
+  PORT = 5000;
+}
 
 // Iniciar o servidor
 app.listen(PORT, () => {

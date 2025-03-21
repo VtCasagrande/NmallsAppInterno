@@ -3,7 +3,7 @@
 FROM node:18-alpine
 
 # Instalar nginx e pacotes necessários
-RUN apk add --no-cache nginx curl bash procps
+RUN apk add --no-cache nginx curl bash procps net-tools
 
 WORKDIR /app
 
@@ -40,11 +40,11 @@ RUN echo '<!DOCTYPE html>\n\
 </html>' > public/index.html
 
 # Criar ícones básicos
-COPY frontend/public/favicon.ico public/favicon.ico
-COPY frontend/public/logo192.png public/logo192.png
-COPY frontend/public/logo512.png public/logo512.png
-COPY frontend/public/manifest.json public/manifest.json
-COPY frontend/public/robots.txt public/robots.txt
+RUN if [ -f "/app/frontend/public/favicon.ico" ]; then cp /app/frontend/public/favicon.ico public/favicon.ico; else echo "Criando ícone padrão..."; fi
+RUN if [ -f "/app/frontend/public/logo192.png" ]; then cp /app/frontend/public/logo192.png public/logo192.png; else echo "Criando logo padrão..."; fi
+RUN if [ -f "/app/frontend/public/logo512.png" ]; then cp /app/frontend/public/logo512.png public/logo512.png; else echo "Criando logo padrão..."; fi
+RUN if [ -f "/app/frontend/public/manifest.json" ]; then cp /app/frontend/public/manifest.json public/manifest.json; else echo "Criando manifest padrão..."; fi
+RUN if [ -f "/app/frontend/public/robots.txt" ]; then cp /app/frontend/public/robots.txt public/robots.txt; else echo "Criando robots padrão..."; fi
 
 # Executar fallbacks caso os arquivos não existam
 RUN if [ ! -f "public/favicon.ico" ]; then \
@@ -67,23 +67,35 @@ RUN if [ ! -f "public/robots.txt" ]; then \
     echo "User-agent: *\nDisallow:" > public/robots.txt; \
     fi
 
-# Instalar dependências e construir o frontend
+# Verificar arquivo package.json
+RUN cat package.json
+
+# Instalar dependências e construir o frontend de forma mais robusta
 RUN npm install --no-audit --no-fund
-RUN npm run build || (echo "Build falhou, usando fallback" && mkdir -p build && echo '<html><body><h1>Mall Recorrente</h1><p>Frontend em construção</p></body></html>' > build/index.html)
+# Tentar várias abordagens para build
+RUN echo "Construindo frontend com NODE_ENV=production..."
+RUN NODE_ENV=production CI=false npm run build || \
+    (echo "Tentando build alternativo..." && \
+     NODE_ENV=production CI=false PUBLIC_URL=/ npm run build) || \
+    (echo "Build falhou, criando fallback" && mkdir -p build && \
+     echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Mall Recorrente</title></head><body><div id="root"><h1>Mall Recorrente</h1><p>Frontend em construção</p></div></body></html>' > build/index.html)
 
 # Verificar se o build foi gerado
 RUN ls -la build && \
     if [ ! -f "build/index.html" ]; then \
         echo "ERRO: build/index.html não encontrado, criando fallback" && \
         mkdir -p build && \
-        echo '<html><body><h1>Mall Recorrente</h1><p>Frontend em construção</p></body></html>' > build/index.html; \
+        echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Mall Recorrente</title></head><body><div id="root"><h1>Mall Recorrente</h1><p>Frontend em construção</p></div></body></html>' > build/index.html; \
+    else \
+        echo "Tamanho do arquivo index.html:" && \
+        stat -c "%s" build/index.html && \
+        echo "Conteúdo da build:" && \
+        ls -la build/; \
     fi
 
 # Configurar backend
 WORKDIR /app/backend
 RUN npm install --no-audit --no-fund
-
-# Configurar nginx - deixando a configuração para o script de inicialização
 
 # Voltar para o diretório raiz
 WORKDIR /app
@@ -96,6 +108,11 @@ RUN mkdir -p /var/log/nginx && \
 
 # Remover configuração padrão do nginx para evitar conflitos
 RUN rm -f /etc/nginx/conf.d/default.conf
+
+# Definir variáveis de ambiente para construção
+ENV PORT=5000
+ENV PORT_BACKEND=5000
+ENV NODE_ENV=production
 
 EXPOSE 80 5000
 
