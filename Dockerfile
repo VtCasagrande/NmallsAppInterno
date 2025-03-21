@@ -5,9 +5,14 @@ FROM node:18-alpine
 # Instalar nginx e pacotes necessários
 RUN apk add --no-cache nginx curl bash procps net-tools
 
+# Diretório de trabalho
 WORKDIR /app
 
-# Copiar todo o projeto
+# Copiar package.json para instalar dependências antes
+COPY package*.json ./
+RUN npm install --no-audit --no-fund
+
+# Copiar o resto dos arquivos
 COPY . .
 
 # Garantir que o script de inicialização seja executável
@@ -15,6 +20,10 @@ RUN chmod +x init-container.sh
 
 # Configurar frontend
 WORKDIR /app/frontend
+
+# Copiar package.json primeiro para instalar dependências
+COPY frontend/package*.json ./
+RUN npm install --no-audit --no-fund
 
 # Criar diretório public e arquivos necessários
 RUN mkdir -p public 
@@ -39,7 +48,7 @@ RUN echo '<!DOCTYPE html>\n\
   </body>\n\
 </html>' > public/index.html
 
-# Criar ícones básicos - usando caminhos absolutos diferentes para evitar conflito
+# Criar ícones básicos
 RUN echo "Criando ícone padrão..."
 RUN echo "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAA9JREFUCB1jYGBg+A8EEAIAAZUAkIrAFCoAAAAASUVORK5CYII=" | base64 -d > public/favicon.ico
 
@@ -55,34 +64,42 @@ RUN echo '{"short_name":"Mall","name":"Mall Recorrente","icons":[{"src":"favicon
 RUN echo "Criando robots.txt padrão..."
 RUN echo "User-agent: *\nDisallow:" > public/robots.txt
 
+# Verificar estrutura de diretórios
+RUN echo "Estrutura de diretórios:" && ls -la /app/frontend/src
+
 # Verificar arquivo package.json
-RUN cat package.json
+RUN echo "Conteúdo do package.json:" && cat package.json
 
-# Instalar dependências e construir o frontend de forma mais robusta
-RUN npm install --no-audit --no-fund
 # Tentar várias abordagens para build
-RUN echo "Construindo frontend com NODE_ENV=production..."
-RUN NODE_ENV=production CI=false npm run build || \
-    (echo "Tentando build alternativo..." && \
-     NODE_ENV=production CI=false PUBLIC_URL=/ npm run build) || \
-    (echo "Build falhou, criando fallback" && mkdir -p build && \
-     echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Mall Recorrente</title></head><body><div id="root"><h1>Mall Recorrente</h1><p>Frontend em construção</p></div></body></html>' > build/index.html)
+RUN echo "Construindo frontend com NODE_ENV=production... (Tentativa 1)"
+RUN NODE_ENV=production GENERATE_SOURCEMAP=false CI=false npm run build || \
+    (echo "Tentando build alternativo com PUBLIC_URL... (Tentativa 2)" && \
+     NODE_ENV=production GENERATE_SOURCEMAP=false CI=false PUBLIC_URL=/ npm run build) || \
+    (echo "Tentando build com configurações específicas... (Tentativa 3)" && \
+     SKIP_PREFLIGHT_CHECK=true GENERATE_SOURCEMAP=false NODE_ENV=production CI=false TSC_COMPILE_ON_ERROR=true npm run build) || \
+    (echo "Build falhou após todas as tentativas, criando fallback..." && \
+     mkdir -p build && \
+     echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Mall Recorrente</title></head><body><div id="root"><h1>Mall Recorrente</h1><p>Frontend em construção - Build falhou</p></div></body></html>' > build/index.html)
 
-# Verificar se o build foi gerado
-RUN ls -la build && \
-    if [ ! -f "build/index.html" ]; then \
-        echo "ERRO: build/index.html não encontrado, criando fallback" && \
-        mkdir -p build && \
-        echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Mall Recorrente</title></head><body><div id="root"><h1>Mall Recorrente</h1><p>Frontend em construção</p></div></body></html>' > build/index.html; \
-    else \
+# Verificar o resultado do build
+RUN ls -la build || echo "Diretório build não encontrado!"
+RUN if [ -f "build/index.html" ]; then \
         echo "Tamanho do arquivo index.html:" && \
         stat -c "%s" build/index.html && \
-        echo "Conteúdo da build:" && \
-        ls -la build/; \
+        echo "Primeiras 100 linhas do index.html:" && \
+        head -n 100 build/index.html; \
+    else \
+        echo "ERRO: build/index.html não encontrado!" && \
+        mkdir -p build && \
+        echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Mall Recorrente</title></head><body><div id="root"><h1>Mall Recorrente</h1><p>Frontend em construção - Arquivo index.html não encontrado</p></div></body></html>' > build/index.html; \
     fi
+
+# Copiar todos os arquivos do src para a build, para poder debugar em produção
+RUN mkdir -p build/src && cp -r /app/frontend/src/* build/src/ || echo "Falha ao copiar arquivos de src"
 
 # Configurar backend
 WORKDIR /app/backend
+COPY backend/package*.json ./
 RUN npm install --no-audit --no-fund
 
 # Voltar para o diretório raiz

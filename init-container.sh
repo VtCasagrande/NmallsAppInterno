@@ -1,110 +1,158 @@
-#!/bin/sh
+#!/bin/bash
 
-# Definir variáveis de ambiente
-export NODE_ENV=production
-export PORT_BACKEND=5000 # Garantir que o backend use a porta 5000
-export PORT=5000 # Compatibilidade com código existente
+# Script de inicialização para o container
 
-# Verificar arquivos e diretórios
-echo "==== Verificando arquivos e diretórios ===="
+# Configurar cores para logs
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-# Verificar se o diretório build do frontend existe
-if [ ! -d "/app/frontend/build" ]; then
-  echo "ERRO: Diretório build não encontrado. Criando um básico..."
-  mkdir -p /app/frontend/build
-  echo "<html><body><h1>Mall Recorrente</h1><p>Frontend em construção</p></body></html>" > /app/frontend/build/index.html
-else
-  echo "Diretório build encontrado em /app/frontend/build"
-  ls -la /app/frontend/build
-  
-  # Verificar tamanho do index.html
-  FILESIZE=$(stat -c%s "/app/frontend/build/index.html")
-  echo "Tamanho do index.html: $FILESIZE bytes"
-  
-  if [ "$FILESIZE" -lt 500 ]; then
-    echo "AVISO: O arquivo index.html parece incompleto (muito pequeno). Conteúdo:"
-    cat /app/frontend/build/index.html
+# Função para logs
+log() {
+  echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"
+}
+
+log_error() {
+  echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S')] ERRO:${NC} $1"
+}
+
+log_warning() {
+  echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] AVISO:${NC} $1"
+}
+
+log_info() {
+  echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')] INFO:${NC} $1"
+}
+
+# Mostrar informações do sistema
+log_info "Iniciando container Mall Recorrente"
+log_info "Informações do sistema:"
+log_info "$(uname -a)"
+log_info "Node: $(node -v)"
+log_info "NPM: $(npm -v)"
+
+# Configurar nginx
+log "Configurando NGINX..."
+
+# Criar arquivo de configuração do nginx para servir o frontend e encaminhar as requisições da API para o backend
+cat > /etc/nginx/http.d/default.conf << 'EOL'
+server {
+    listen 80;
+    client_max_body_size 100M;
     
-    echo "Tentando reconstruir o frontend..."
-    cd /app/frontend
-    npm run build || echo "Falha na reconstrução do frontend"
-    cd /app
+    # Configuração dos logs
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    # Servir os arquivos estáticos do React
+    location / {
+        root /app/frontend/build;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Encaminhar as requisições da API para o backend
+    location /api {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+EOL
+
+# Verificar configuração Nginx
+log_info "Verificando configuração do Nginx..."
+nginx -t || { log_error "Configuração do Nginx inválida!"; exit 1; }
+
+# Iniciar Nginx
+log "Iniciando NGINX..."
+nginx || { log_error "Falha ao iniciar Nginx!"; exit 1; }
+
+# Verificar se o frontend foi construído com sucesso
+if [ -f "/app/frontend/build/index.html" ]; then
+  filesize=$(stat -c%s "/app/frontend/build/index.html")
+  log_info "Frontend build encontrado com tamanho: $filesize bytes"
+  if [ "$filesize" -lt 500 ]; then
+    log_warning "O arquivo index.html parece estar incompleto ($filesize bytes)"
+    log_info "Conteúdo do index.html:"
+    cat /app/frontend/build/index.html
+  else
+    log_info "O tamanho do arquivo index.html parece adequado"
   fi
-fi
-
-# Verificar configuração do nginx
-if [ ! -f "/app/frontend/nginx.conf" ]; then
-  echo "ERRO: Configuração do nginx não encontrada."
-  exit 1
 else
-  echo "Arquivo de configuração do Nginx encontrado em /app/frontend/nginx.conf"
-  # Copiar para o local padrão do nginx
-  cp /app/frontend/nginx.conf /etc/nginx/nginx.conf
-  echo "Configuração copiada para /etc/nginx/nginx.conf"
+  log_error "Frontend build não encontrado! Verificando diretório..."
+  ls -la /app/frontend/build/ || { 
+    log_error "Diretório de build não existe, criando fallback..."; 
+    mkdir -p /app/frontend/build/
+    echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Mall Recorrente</title></head><body><div id="root"><h1>Mall Recorrente</h1><p>Frontend em construção - Erro no script de inicialização</p><pre>Verifique os logs do container para mais informações.</pre></div></body></html>' > /app/frontend/build/index.html
+  }
 fi
 
-# Limpar diretório do nginx e copiar os arquivos estáticos
-echo "==== Preparando diretório do Nginx ===="
-rm -rf /usr/share/nginx/html/*
-mkdir -p /usr/share/nginx/html
-
-echo "Copiando arquivos estáticos do frontend para o Nginx..."
-cp -rv /app/frontend/build/* /usr/share/nginx/html/
-
-echo "Definindo permissões nos arquivos do Nginx..."
-find /usr/share/nginx/html -type d -exec chmod 755 {} \;
-find /usr/share/nginx/html -type f -exec chmod 644 {} \;
-
-echo "Conteúdo do diretório do Nginx:"
-ls -la /usr/share/nginx/html
-
-# Verificar se os arquivos foram copiados corretamente
-if [ ! -f "/usr/share/nginx/html/index.html" ]; then
-  echo "ERRO: index.html não encontrado. Criando fallback..."
-  echo "<html><body><h1>Mall Recorrente</h1><p>Frontend em construção</p></body></html>" > /usr/share/nginx/html/index.html
-else
-  echo "index.html encontrado em /usr/share/nginx/html"
-  FILESIZE=$(stat -c%s "/usr/share/nginx/html/index.html")
-  echo "Tamanho do index.html no Nginx: $FILESIZE bytes"
-  
-  if [ "$FILESIZE" -lt 500 ]; then
-    echo "AVISO: Arquivo index.html no Nginx parece incompleto. Conteúdo:"
-    cat /usr/share/nginx/html/index.html
-  fi
-fi
-
-# Iniciar serviços
-echo "==== Iniciando serviços ===="
-
-# Verificar a configuração do nginx
-echo "Verificando configuração do Nginx..."
-nginx -t
-
-# Reiniciar nginx para garantir que a configuração seja carregada
-echo "Iniciando o nginx..."
-killall -9 nginx || echo "Nginx não estava rodando"
-sleep 1
-nginx
-
-# Verificar se o nginx iniciou corretamente
-if ! pgrep -x "nginx" > /dev/null; then
-  echo "ERRO: Nginx não conseguiu iniciar. Verificando logs..."
-  cat /var/log/nginx/error.log
-else
-  echo "Nginx iniciado com sucesso!"
-  ps aux | grep nginx
-  echo "Verificando portas em uso:"
-  netstat -tulpn | grep LISTEN
-fi
-
-# Navegar para a pasta do backend
+# Iniciar backend
+log "Iniciando backend na porta 5000..."
 cd /app/backend
+node src/server.js &
+BACKEND_PID=$!
 
-# Iniciar o servidor backend
-echo "Iniciando servidor backend na porta 5000..."
-PORT_BACKEND=5000 PORT=5000 node src/server.js
+# Verificar se o backend está rodando
+sleep 3
+if ps -p $BACKEND_PID > /dev/null; then
+  log_info "Backend iniciado com sucesso (PID: $BACKEND_PID)"
+else
+  log_error "Falha ao iniciar o backend!"
+fi
 
-# O comando acima (node) já mantém o processo ativo
+# Monitoramento contínuo
+log "Todos os serviços iniciados. Monitorando processos..."
 
-# Manter o container rodando
-# O comando acima (node) já mantém o processo ativo, então não é necessário um loop adicional 
+# Função para verificar se um processo está em execução
+check_process() {
+  if [ "$1" == "nginx" ]; then
+    pgrep -x nginx > /dev/null
+    return $?
+  else
+    ps -p $2 > /dev/null
+    return $?
+  fi
+}
+
+# Loop para monitorar os processos
+while true; do
+  # Verificar backend
+  if ! check_process "node" $BACKEND_PID; then
+    log_error "Backend parou de funcionar! Tentando reiniciar..."
+    cd /app/backend
+    node src/server.js &
+    BACKEND_PID=$!
+    sleep 2
+    if check_process "node" $BACKEND_PID; then
+      log_info "Backend reiniciado com sucesso (PID: $BACKEND_PID)"
+    else
+      log_error "Falha ao reiniciar o backend!"
+    fi
+  fi
+
+  # Verificar nginx
+  if ! check_process "nginx"; then
+    log_error "Nginx parou de funcionar! Tentando reiniciar..."
+    nginx
+    sleep 2
+    if check_process "nginx"; then
+      log_info "Nginx reiniciado com sucesso"
+    else
+      log_error "Falha ao reiniciar o Nginx!"
+    fi
+  fi
+
+  # Criar um pequeno log a cada 5 minutos para confirmar que o container está ativo
+  if [ $(($(date +%s) % 300)) -lt 5 ]; then
+    log_info "Container funcionando normalmente - Backend: $(ps -p $BACKEND_PID -o %cpu,%mem | tail -1), Nginx: $(ps -C nginx -o %cpu,%mem | tail -1)"
+  fi
+
+  sleep 5
+done 
