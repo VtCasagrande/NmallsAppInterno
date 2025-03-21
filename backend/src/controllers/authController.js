@@ -52,32 +52,79 @@ exports.register = async (req, res) => {
 // @access  Public
 exports.login = async (req, res) => {
   try {
+    console.log('Login request:', req.body);
+    
     const { email, password } = req.body;
+    
+    // Validar entrada
+    if (!email || !password) {
+      return res.status(400).json({ 
+        message: 'Por favor, informe email e senha' 
+      });
+    }
 
-    // Verificar usuário e senha
+    // Buscar usuário com senha incluída
     const user = await User.findOne({ email }).select('+password');
-
+    console.log('User found:', user ? 'Yes' : 'No');
+    
+    // Verificar se usuário existe
     if (!user) {
-      return res.status(401).json({ message: 'Email ou senha inválidos' });
+      return res.status(401).json({ 
+        message: 'Email ou senha inválidos',
+        debug: 'Usuário não encontrado'
+      });
     }
-
-    // Usar bcrypt.compare diretamente para comparar a senha
-    const isMatch = await bcrypt.compare(password, user.password);
-
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Email ou senha inválidos' });
+    
+    // Verificar se a senha está presente
+    if (!user.password) {
+      console.error('Senha não disponível para o usuário:', user._id);
+      return res.status(500).json({ 
+        message: 'Erro de configuração do sistema',
+        debug: 'Senha não disponível'
+      });
     }
-
-    res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      token: generateToken(user._id)
+    
+    // Log para debug
+    console.log('Password lengths:', {
+      inputPassword: password.length,
+      storedPassword: user.password.length
     });
+    
+    try {
+      // Comparar senha
+      const isMatch = await bcrypt.compare(password, user.password);
+      
+      if (!isMatch) {
+        return res.status(401).json({ 
+          message: 'Email ou senha inválidos',
+          debug: 'Senha não corresponde'
+        });
+      }
+      
+      // Gerar token e retornar usuário
+      const token = generateToken(user._id);
+      
+      res.json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        token
+      });
+    } catch (bcryptError) {
+      console.error('Erro ao comparar senhas:', bcryptError);
+      return res.status(500).json({ 
+        message: 'Erro ao processar login',
+        error: bcryptError.message
+      });
+    }
   } catch (error) {
-    console.error(`Erro ao fazer login: ${error.message}`);
-    res.status(500).json({ message: 'Erro ao fazer login', error: error.message });
+    console.error(`Erro ao fazer login: ${error.message}`, error);
+    res.status(500).json({ 
+      message: 'Erro ao fazer login', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+    });
   }
 };
 

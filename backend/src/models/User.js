@@ -4,26 +4,30 @@ const bcrypt = require('bcryptjs');
 const UserSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Por favor, informe o nome']
+    required: [true, 'Por favor, informe o nome'],
+    trim: true,
+    maxlength: [100, 'Nome não pode ter mais de 100 caracteres']
   },
   email: {
     type: String,
     required: [true, 'Por favor, informe o email'],
     unique: true,
+    trim: true,
+    lowercase: true,
     match: [
-      /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
+      /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
       'Por favor, informe um email válido'
     ]
   },
   password: {
     type: String,
     required: [true, 'Por favor, informe a senha'],
-    minlength: 6,
-    select: false
+    minlength: [6, 'Senha deve ter pelo menos 6 caracteres'],
+    select: false // Não retornar senha nas consultas
   },
   role: {
     type: String,
-    enum: ['admin', 'operator'],
+    enum: ['admin', 'manager', 'operator'],
     default: 'operator'
   },
   active: {
@@ -36,41 +40,68 @@ const UserSchema = new mongoose.Schema({
   }
 });
 
-// Criptografar senha antes de salvar
-UserSchema.pre('save', async function(next) {
+// Criptografar senha usando bcrypt
+UserSchema.pre('save', async function (next) {
+  // Só executa se a senha foi modificada (ou é nova)
   if (!this.isModified('password')) {
     return next();
   }
 
   try {
+    // Gerar salt
     const salt = await bcrypt.genSalt(10);
+    // Hash da senha
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error) {
+    console.error('Erro ao criptografar senha:', error);
     next(error);
   }
 });
 
-// Método para comparar senha
-UserSchema.methods.comparePassword = async function(enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+// Método para verificar senha
+UserSchema.methods.matchPassword = async function (enteredPassword) {
+  try {
+    return await bcrypt.compare(enteredPassword, this.password);
+  } catch (error) {
+    console.error('Erro ao comparar senhas:', error);
+    throw error;
+  }
 };
 
-// Método estático para criar usuário administrador
-UserSchema.statics.createAdminUser = async function(userData) {
+// Método para criar admin inicial ou resetar admin
+UserSchema.statics.createAdmin = async function (email = 'admin@mallrecorrente.com.br', password = 'admin123') {
   try {
-    const existingAdmin = await this.findOne({ role: 'admin' });
-    if (existingAdmin) {
-      throw new Error('Já existe um usuário administrador');
-    }
+    console.log('Tentando criar ou atualizar admin...');
     
-    return await this.create({
-      name: userData.name || 'Administrador',
-      email: userData.email || 'admin@mallrecorrente.com.br',
-      password: userData.password || 'admin123',
-      role: 'admin'
-    });
+    // Verificar se já existe um admin
+    const adminExists = await this.findOne({ email });
+    
+    if (adminExists) {
+      console.log('Admin já existe, atualizando senha...');
+      
+      // Admin já existe, atualizar senha
+      adminExists.password = password;
+      await adminExists.save();
+      
+      console.log('Senha do admin atualizada com sucesso');
+      return adminExists;
+    } else {
+      console.log('Criando novo usuário admin...');
+      
+      // Criar novo admin
+      const admin = await this.create({
+        name: 'Administrador',
+        email,
+        password,
+        role: 'admin'
+      });
+      
+      console.log('Admin criado com sucesso');
+      return admin;
+    }
   } catch (error) {
+    console.error('Erro ao criar/atualizar admin:', error);
     throw error;
   }
 };

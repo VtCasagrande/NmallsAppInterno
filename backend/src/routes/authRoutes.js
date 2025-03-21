@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { login, register, getCurrentUser } = require('../controllers/authController');
-const { protect } = require('../middleware/auth');
+const { protect } = require('../middleware/authMiddleware');
 const User = require('../models/User');
 
 // Rotas de autenticação
@@ -11,78 +11,92 @@ router.get('/me', protect, getCurrentUser);
 
 // Rota para status da API
 router.get('/health', (req, res) => {
-  res.status(200).json({ 
+  res.json({
     status: 'ok',
     message: 'API funcionando normalmente',
-    time: new Date().toISOString()
+    timestamp: new Date().toISOString()
   });
 });
 
 // Rota de inicialização do sistema
 router.post('/init', async (req, res) => {
   try {
-    // Tentar criar usuário administrador usando o método estático
-    const adminUser = await User.createAdminUser({
-      name: 'Administrador',
-      email: 'admin@mallrecorrente.com.br',
-      password: 'admin123'
-    });
+    console.log('Inicializando sistema - criando admin padrão');
+    
+    // Verifica se já existe algum usuário no sistema
+    const userCount = await User.countDocuments();
+    
+    if (userCount > 0) {
+      return res.status(400).json({ 
+        message: 'Sistema já inicializado', 
+        userCount 
+      });
+    }
+
+    // Cria o primeiro usuário administrador
+    const admin = await User.createAdmin();
     
     res.status(201).json({
-      success: true,
-      message: 'Usuário administrador criado com sucesso',
-      data: {
-        name: adminUser.name,
-        email: adminUser.email,
-        role: adminUser.role
+      message: 'Sistema inicializado com sucesso',
+      admin: {
+        _id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role
+      },
+      credentials: {
+        email: 'admin@mallrecorrente.com.br',
+        password: 'admin123'
       }
     });
   } catch (error) {
-    console.error('Erro ao inicializar o sistema:', error);
-    // Se o erro for que já existe um admin, retornar 400
-    if (error.message === 'Já existe um usuário administrador') {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Já existe pelo menos um usuário administrador no sistema' 
-      });
-    }
-    
+    console.error('Erro ao inicializar sistema:', error);
     res.status(500).json({ 
-      success: false,
-      message: 'Erro ao inicializar o sistema', 
+      message: 'Erro ao inicializar sistema', 
       error: error.message 
     });
   }
 });
 
-// Rota de reset de admin (apenas para desenvolvimento)
+// APENAS PARA DESENVOLVIMENTO - reset do admin
 router.post('/reset-admin', async (req, res) => {
   try {
-    // Remover usuário admin existente
-    await User.deleteMany({ role: 'admin' });
+    // Em produção, esta rota deveria ser desabilitada ou protegida
+    if (process.env.NODE_ENV === 'production') {
+      const isAllowed = process.env.ALLOW_ADMIN_RESET === 'true';
+      
+      if (!isAllowed) {
+        return res.status(403).json({
+          message: 'Esta operação não é permitida em ambiente de produção'
+        });
+      }
+    }
     
-    // Criar novo usuário admin
-    const adminUser = await User.create({
-      name: 'Administrador',
-      email: 'admin@mallrecorrente.com.br',
-      password: 'admin123',
-      role: 'admin'
-    });
+    console.log('Solicitação de reset do admin recebida');
     
-    res.status(201).json({
-      success: true,
-      message: 'Usuário administrador resetado com sucesso',
-      data: {
-        name: adminUser.name,
-        email: adminUser.email,
-        role: adminUser.role
+    // Alternar entre ambiente de teste e um endereço personalizado se fornecido
+    const email = req.body.email || 'admin@mallrecorrente.com.br';
+    const password = req.body.password || 'admin123';
+    
+    const admin = await User.createAdmin(email, password);
+    
+    res.status(200).json({
+      message: 'Admin resetado com sucesso',
+      admin: {
+        _id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role
+      },
+      credentials: {
+        email,
+        password
       }
     });
   } catch (error) {
     console.error('Erro ao resetar admin:', error);
     res.status(500).json({ 
-      success: false,
-      message: 'Erro ao resetar usuário administrador', 
+      message: 'Erro ao resetar admin', 
       error: error.message 
     });
   }
