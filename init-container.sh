@@ -33,6 +33,156 @@ log_info "$(uname -a)"
 log_info "Node: $(node -v)"
 log_info "NPM: $(npm -v)"
 
+# Criar um fallback mais bonito e funcional
+create_fallback_frontend() {
+  log_warning "Criando página de fallback para o frontend..."
+  mkdir -p /app/frontend/build/
+  cat > /app/frontend/build/index.html << 'EOL'
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mall Recorrente - Em manutenção</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 800px;
+            width: 90%;
+        }
+        h1 {
+            color: #1976d2;
+            margin-bottom: 0.5em;
+        }
+        .status {
+            background-color: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 10px 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .actions {
+            margin-top: 30px;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #1976d2;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 500;
+            margin: 10px;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #1565c0;
+        }
+        .btn-secondary {
+            background-color: #757575;
+        }
+        .btn-secondary:hover {
+            background-color: #616161;
+        }
+        .api-status {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e3f2fd;
+            border-radius: 4px;
+        }
+        code {
+            background-color: #f1f1f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .logs {
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: #263238;
+            color: #eee;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mall Recorrente</h1>
+        <p>Sistema de gerenciamento de recorrências</p>
+        
+        <div class="status">
+            <h2>Status: Manutenção</h2>
+            <p>O frontend da aplicação está temporariamente indisponível. A equipe está trabalhando para restabelecer o serviço o mais rápido possível.</p>
+        </div>
+        
+        <div class="api-status">
+            <h3>API Backend</h3>
+            <p>O backend da aplicação está funcionando normalmente.</p>
+            <p>Você pode verificar o status da API acessando: <code>/api/status</code></p>
+        </div>
+        
+        <div class="actions">
+            <a href="/api" class="btn">Acessar API Diretamente</a>
+            <a href="javascript:location.reload()" class="btn btn-secondary">Tentar Novamente</a>
+        </div>
+        
+        <div class="logs">
+            <p>Detalhes técnicos:</p>
+            <p>- Frontend build não encontrado ou corrompido</p>
+            <p>- Certifique-se de que o processo de build do React está configurado corretamente</p>
+            <p>- Verifique os logs do container para mais informações</p>
+        </div>
+    </div>
+    <script>
+        // Verificar status da API a cada 30 segundos
+        function checkApiStatus() {
+            fetch('/api/health', { method: 'GET' })
+                .then(response => {
+                    if (response.ok) {
+                        document.querySelector('.api-status p').textContent = 'O backend da aplicação está funcionando normalmente.';
+                    } else {
+                        document.querySelector('.api-status p').textContent = 'O backend da aplicação está enfrentando problemas.';
+                    }
+                })
+                .catch(error => {
+                    document.querySelector('.api-status p').textContent = 'Não foi possível conectar ao backend.';
+                });
+        }
+        
+        // Verificar status inicial e configurar intervalo
+        checkApiStatus();
+        setInterval(checkApiStatus, 30000);
+        
+        // Tentar recarregar a página automaticamente após 60 segundos
+        setTimeout(() => {
+            location.reload();
+        }, 60000);
+    </script>
+</body>
+</html>
+EOL
+}
+
 # Configurar nginx
 log "Configurando NGINX..."
 
@@ -81,6 +231,9 @@ if [ -f "/app/frontend/build/index.html" ]; then
     log_warning "O arquivo index.html parece estar incompleto ($filesize bytes)"
     log_info "Conteúdo do index.html:"
     cat /app/frontend/build/index.html
+    
+    # Criar fallback já que o index.html parece incompleto
+    create_fallback_frontend
   else
     log_info "O tamanho do arquivo index.html parece adequado"
   fi
@@ -88,9 +241,32 @@ else
   log_error "Frontend build não encontrado! Verificando diretório..."
   ls -la /app/frontend/build/ || { 
     log_error "Diretório de build não existe, criando fallback..."; 
-    mkdir -p /app/frontend/build/
-    echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Mall Recorrente</title></head><body><div id="root"><h1>Mall Recorrente</h1><p>Frontend em construção - Erro no script de inicialização</p><pre>Verifique os logs do container para mais informações.</pre></div></body></html>' > /app/frontend/build/index.html
+    create_fallback_frontend
   }
+fi
+
+# Tentar reconstruir o frontend se o build estiver ausente ou for muito pequeno
+if [ ! -f "/app/frontend/build/index.html" ] || [ "$(stat -c%s "/app/frontend/build/index.html")" -lt 500 ]; then
+  log_warning "Tentando reconstruir o frontend..."
+  cd /app/frontend
+  
+  # Mostrar o conteúdo do package.json para debug
+  log_info "Conteúdo do package.json antes do rebuild:"
+  cat package.json
+  
+  # Tentar reinstalar dependências e reconstruir
+  npm install --no-audit --no-fund
+  NODE_ENV=production GENERATE_SOURCEMAP=false CI=false npm run build
+  
+  # Verificar se o build funcionou
+  if [ -f "build/index.html" ] && [ "$(stat -c%s "build/index.html")" -gt 500 ]; then
+    log_info "Reconstrução do frontend bem-sucedida!"
+  else
+    log_error "Reconstrução do frontend falhou, mantendo fallback."
+  fi
+  
+  # Voltar para o diretório raiz
+  cd /app
 fi
 
 # Iniciar backend
