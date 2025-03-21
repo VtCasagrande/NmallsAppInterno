@@ -1,3 +1,6 @@
+// Importar React
+import React from 'react';
+
 // Arquivo de debug para auxiliar na identificação de problemas no build
 console.log('----- Informações de debug do frontend -----');
 console.log('Ambiente:', process.env.NODE_ENV);
