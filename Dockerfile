@@ -39,33 +39,21 @@ RUN echo '<!DOCTYPE html>\n\
   </body>\n\
 </html>' > public/index.html
 
-# Criar ícones básicos
-RUN if [ -f "/app/frontend/public/favicon.ico" ]; then cp /app/frontend/public/favicon.ico public/favicon.ico; else echo "Criando ícone padrão..."; fi
-RUN if [ -f "/app/frontend/public/logo192.png" ]; then cp /app/frontend/public/logo192.png public/logo192.png; else echo "Criando logo padrão..."; fi
-RUN if [ -f "/app/frontend/public/logo512.png" ]; then cp /app/frontend/public/logo512.png public/logo512.png; else echo "Criando logo padrão..."; fi
-RUN if [ -f "/app/frontend/public/manifest.json" ]; then cp /app/frontend/public/manifest.json public/manifest.json; else echo "Criando manifest padrão..."; fi
-RUN if [ -f "/app/frontend/public/robots.txt" ]; then cp /app/frontend/public/robots.txt public/robots.txt; else echo "Criando robots padrão..."; fi
+# Criar ícones básicos - usando caminhos absolutos diferentes para evitar conflito
+RUN echo "Criando ícone padrão..."
+RUN echo "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAA9JREFUCB1jYGBg+A8EEAIAAZUAkIrAFCoAAAAASUVORK5CYII=" | base64 -d > public/favicon.ico
 
-# Executar fallbacks caso os arquivos não existam
-RUN if [ ! -f "public/favicon.ico" ]; then \
-    echo "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAA9JREFUCB1jYGBg+A8EEAIAAZUAkIrAFCoAAAAASUVORK5CYII=" | base64 -d > public/favicon.ico; \
-    fi
+RUN echo "Criando logo padrão..."
+RUN echo "iVBORw0KGgoAAAANSUhEUgAAAMAAAADABAMAAACg8nE0AAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAACJJREFUeJztwTEBAAAAwqD1T20ND6AAAAAAAAAAAAAA4N8AKvgAAUFIrrEAAAAASUVORK5CYII=" | base64 -d > public/logo192.png
 
-RUN if [ ! -f "public/logo192.png" ]; then \
-    echo "iVBORw0KGgoAAAANSUhEUgAAAMAAAADABAMAAACg8nE0AAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAACJJREFUeJztwTEBAAAAwqD1T20ND6AAAAAAAAAAAAAA4N8AKvgAAUFIrrEAAAAASUVORK5CYII=" | base64 -d > public/logo192.png; \
-    fi
+RUN echo "Criando logo grande padrão..."
+RUN echo "iVBORw0KGgoAAAANSUhEUgAAAgAAAAIABAMAAAAGVsnJAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAACNJREFUeJztwQENAAAAwqD3T20PBxQAAAAAAAAAAAAAAHwbQgAAATmKlGMAAAAASUVORK5CYII=" | base64 -d > public/logo512.png
 
-RUN if [ ! -f "public/logo512.png" ]; then \
-    echo "iVBORw0KGgoAAAANSUhEUgAAAgAAAAIABAMAAAAGVsnJAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAACNJREFUeJztwQENAAAAwqD3T20PBxQAAAAAAAAAAAAAAHwbQgAAATmKlGMAAAAASUVORK5CYII=" | base64 -d > public/logo512.png; \
-    fi
+RUN echo "Criando manifest.json padrão..."
+RUN echo '{"short_name":"Mall","name":"Mall Recorrente","icons":[{"src":"favicon.ico","sizes":"64x64 32x32 24x24 16x16","type":"image/x-icon"},{"src":"logo192.png","type":"image/png","sizes":"192x192"},{"src":"logo512.png","type":"image/png","sizes":"512x512"}],"start_url":".","display":"standalone","theme_color":"#000000","background_color":"#ffffff"}' > public/manifest.json
 
-RUN if [ ! -f "public/manifest.json" ]; then \
-    echo '{"short_name":"Mall","name":"Mall Recorrente","icons":[{"src":"favicon.ico","sizes":"64x64 32x32 24x24 16x16","type":"image/x-icon"},{"src":"logo192.png","type":"image/png","sizes":"192x192"},{"src":"logo512.png","type":"image/png","sizes":"512x512"}],"start_url":".","display":"standalone","theme_color":"#000000","background_color":"#ffffff"}' > public/manifest.json; \
-    fi
-
-RUN if [ ! -f "public/robots.txt" ]; then \
-    echo "User-agent: *\nDisallow:" > public/robots.txt; \
-    fi
+RUN echo "Criando robots.txt padrão..."
+RUN echo "User-agent: *\nDisallow:" > public/robots.txt
 
 # Verificar arquivo package.json
 RUN cat package.json
