@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const baseURL = 
+  process.env.REACT_APP_API_URL || 
+  'https://nmallsinterno-nmallsinterno.op6qrj.easypanel.host/api';
 
 const api = axios.create({
   baseURL,
@@ -9,7 +11,7 @@ const api = axios.create({
   },
 });
 
-// Interceptor para adicionar o token de autenticação em todas as requisições
+// Interceptor para adicionar token de autenticação em todas as requisições
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -23,16 +25,13 @@ api.interceptors.request.use(
   }
 );
 
-// Interceptor para tratar erros de resposta
+// Interceptor para tratamento de erros nas respostas
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   (error) => {
-    // Verificar se o erro é de autenticação
+    // Tratamento de erro de autenticação (token expirado)
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token');
-      localStorage.removeItem('user');
       window.location.href = '/login';
     }
     return Promise.reject(error);

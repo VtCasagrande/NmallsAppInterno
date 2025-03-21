@@ -1,29 +1,37 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
+import { CircularProgress, Box } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface PrivateRouteProps {
-  allowedRoles?: string[];
+  children: React.ReactNode;
+  adminOnly?: boolean;
 }
 
-const PrivateRoute: React.FC<PrivateRouteProps> = ({ allowedRoles }) => {
-  const { authState } = useAuth();
-  const { isAuthenticated, loading, user } = authState;
+const PrivateRoute: React.FC<PrivateRouteProps> = ({ children, adminOnly = false }) => {
+  const { isAuthenticated, loading, isAdmin } = useAuth();
 
+  // Se estiver carregando, mostra um spinner
   if (loading) {
-    return <div>Carregando...</div>;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
+  // Verifica se o usuário está autenticado
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
   }
 
-  // Verificar permissões se necessário
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/unauthorized" />;
+  // Se a rota for apenas para administradores, verifica o perfil do usuário
+  if (adminOnly && !isAdmin()) {
+    return <Navigate to="/dashboard" />;
   }
 
-  return <Outlet />;
+  // Usuário autenticado e com permissões adequadas
+  return <>{children}</>;
 };
 
 export default PrivateRoute; 

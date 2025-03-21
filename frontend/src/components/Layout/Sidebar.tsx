@@ -1,154 +1,130 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
 import {
-  Drawer,
+  Box,
+  Divider,
   List,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Divider,
-  Box,
-  Typography
+  Toolbar,
+  Typography,
+  IconButton,
 } from '@mui/material';
-import {
-  Dashboard as DashboardIcon,
-  People as PeopleIcon,
-  Inventory as InventoryIcon,
-  Repeat as RepeatIcon,
-  LocalShipping as ShippingIcon,
-  Settings as SettingsIcon,
-  ExitToApp as LogoutIcon
-} from '@mui/icons-material';
+
+// Ícones
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import PeopleIcon from '@mui/icons-material/People';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import RepeatIcon from '@mui/icons-material/Repeat';
+import RouteIcon from '@mui/icons-material/Route';
+import SettingsIcon from '@mui/icons-material/Settings';
+import PersonIcon from '@mui/icons-material/Person';
+
 import { useAuth } from '../../contexts/AuthContext';
 
-const drawerWidth = 240;
-
 interface SidebarProps {
-  mobileOpen: boolean;
-  handleDrawerToggle: () => void;
+  onClose?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, handleDrawerToggle }) => {
+interface NavItem {
+  text: string;
+  icon: React.ReactElement;
+  to: string;
+  adminOnly?: boolean;
+}
+
+const navItems: NavItem[] = [
+  {
+    text: 'Dashboard',
+    icon: <DashboardIcon />,
+    to: '/dashboard',
+  },
+  {
+    text: 'Clientes',
+    icon: <PeopleIcon />,
+    to: '/clientes',
+  },
+  {
+    text: 'Produtos',
+    icon: <InventoryIcon />,
+    to: '/produtos',
+  },
+  {
+    text: 'Recorrências',
+    icon: <RepeatIcon />,
+    to: '/recorrencias',
+  },
+  {
+    text: 'Rotas de Entrega',
+    icon: <RouteIcon />,
+    to: '/rotas',
+  },
+  {
+    text: 'Usuários',
+    icon: <PersonIcon />,
+    to: '/usuarios',
+    adminOnly: true,
+  },
+  {
+    text: 'Configurações',
+    icon: <SettingsIcon />,
+    to: '/configuracoes',
+    adminOnly: true,
+  },
+];
+
+const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
+  const { isAdmin } = useAuth();
   const location = useLocation();
-  const { authState, logout } = useAuth();
-  const { user } = authState;
 
-  const menuItems = [
-    {
-      text: 'Dashboard',
-      icon: <DashboardIcon />,
-      path: '/dashboard',
-      roles: ['admin', 'operator']
-    },
-    {
-      text: 'Clientes',
-      icon: <PeopleIcon />,
-      path: '/customers',
-      roles: ['admin', 'operator']
-    },
-    {
-      text: 'Produtos',
-      icon: <InventoryIcon />,
-      path: '/products',
-      roles: ['admin', 'operator']
-    },
-    {
-      text: 'Recorrências',
-      icon: <RepeatIcon />,
-      path: '/recurrences',
-      roles: ['admin', 'operator']
-    },
-    {
-      text: 'Rotas de Entrega',
-      icon: <ShippingIcon />,
-      path: '/routes',
-      roles: ['admin', 'operator']
-    },
-    {
-      text: 'Configurações',
-      icon: <SettingsIcon />,
-      path: '/settings',
-      roles: ['admin']
+  // Filtrar itens com base na permissão do usuário
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.adminOnly) {
+      return isAdmin();
     }
-  ];
-
-  const drawer = (
-    <div>
-      <Box sx={{ p: 2, textAlign: 'center' }}>
-        <Typography variant="h6" noWrap component="div">
-          Mall Recorrente
-        </Typography>
-      </Box>
-      <Divider />
-      <List>
-        {menuItems.map((item) => {
-          // Verificar se o usuário tem permissão para ver este item
-          if (user && item.roles.includes(user.role)) {
-            return (
-              <ListItem key={item.text} disablePadding>
-                <ListItemButton
-                  component={Link}
-                  to={item.path}
-                  selected={location.pathname === item.path}
-                >
-                  <ListItemIcon>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.text} />
-                </ListItemButton>
-              </ListItem>
-            );
-          }
-          return null;
-        })}
-      </List>
-      <Divider />
-      <List>
-        <ListItem disablePadding>
-          <ListItemButton onClick={logout}>
-            <ListItemIcon>
-              <LogoutIcon />
-            </ListItemIcon>
-            <ListItemText primary="Sair" />
-          </ListItemButton>
-        </ListItem>
-      </List>
-    </div>
-  );
+    return true;
+  });
 
   return (
-    <Box
-      component="nav"
-      sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-      aria-label="menu lateral"
-    >
-      {/* Versão móvel */}
-      <Drawer
-        variant="temporary"
-        open={mobileOpen}
-        onClose={handleDrawerToggle}
-        ModalProps={{
-          keepMounted: true // Melhor desempenho em dispositivos móveis.
-        }}
+    <>
+      <Toolbar
         sx={{
-          display: { xs: 'block', sm: 'none' },
-          '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth }
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          px: [1],
         }}
       >
-        {drawer}
-      </Drawer>
+        <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold' }}>
+          Mall Recorrente
+        </Typography>
+        {onClose ? (
+          <IconButton onClick={onClose}>
+            <ChevronLeftIcon />
+          </IconButton>
+        ) : null}
+      </Toolbar>
       
-      {/* Versão desktop */}
-      <Drawer
-        variant="permanent"
-        sx={{
-          display: { xs: 'none', sm: 'block' },
-          '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth }
-        }}
-        open
-      >
-        {drawer}
-      </Drawer>
-    </Box>
+      <Divider />
+      
+      <List component="nav">
+        {filteredNavItems.map((item) => (
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton
+              component={RouterLink}
+              to={item.to}
+              selected={location.pathname.startsWith(item.to)}
+            >
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.text} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+    </>
   );
 };
 

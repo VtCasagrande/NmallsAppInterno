@@ -1,284 +1,195 @@
-import React, { useEffect, useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
-  Grid,
   Typography,
+  Grid,
   Paper,
+  Divider,
   Button,
   CircularProgress,
-  Card,
-  CardContent,
-  CardActions,
-  Divider,
-  List,
-  ListItem,
-  ListItemText
 } from '@mui/material';
-import { 
-  People as PeopleIcon, 
-  Repeat as RepeatIcon, 
-  History as HistoryIcon,
-  Warning as WarningIcon
-} from '@mui/icons-material';
-
-import { RecurrenceStats } from '../interfaces';
-import { getRecurrenceStats } from '../services/recurrenceService';
-import { getRecurrences } from '../services/recurrenceService';
+import PeopleIcon from '@mui/icons-material/People';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import RepeatIcon from '@mui/icons-material/Repeat';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 
 const Dashboard: React.FC = () => {
-  const [stats, setStats] = useState<RecurrenceStats | null>(null);
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [overdueRecurrences, setOverdueRecurrences] = useState([]);
-  const [loadingOverdue, setLoadingOverdue] = useState(true);
-  const [todayRecurrences, setTodayRecurrences] = useState([]);
-  const [loadingToday, setLoadingToday] = useState(true);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    customers: 0,
+    products: 0,
+    recurrences: 0,
+    pendingRecurrences: 0,
+  });
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchStats = async () => {
+    // Simular carregamento de dados
+    const fetchData = async () => {
       try {
-        const response = await getRecurrenceStats();
-        setStats(response.data);
-        setLoadingStats(false);
+        // Aqui, no futuro, faremos chamadas reais à API
+        // Por enquanto, apenas simulamos um carregamento
+        setTimeout(() => {
+          setStats({
+            customers: 24,
+            products: 56,
+            recurrences: 112,
+            pendingRecurrences: 8,
+          });
+          setLoading(false);
+        }, 1000);
       } catch (error) {
-        setError('Erro ao carregar estatísticas');
-        setLoadingStats(false);
+        console.error('Erro ao carregar dados do dashboard:', error);
+        setLoading(false);
       }
     };
 
-    const fetchOverdueRecurrences = async () => {
-      try {
-        const response = await getRecurrences(1, 5, '', 'nextDate:asc', 'active', '', true);
-        setOverdueRecurrences(response.data);
-        setLoadingOverdue(false);
-      } catch (error) {
-        setError('Erro ao carregar recorrências atrasadas');
-        setLoadingOverdue(false);
-      }
-    };
-
-    const fetchTodayRecurrences = async () => {
-      try {
-        // Filtrar por recorrências com data para hoje
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        
-        const response = await getRecurrences(1, 5, '', 'nextDate:asc');
-        const todayData = response.data.filter((recurrence: any) => {
-          const nextDate = new Date(recurrence.nextDate);
-          return nextDate >= today && nextDate < tomorrow;
-        });
-        
-        setTodayRecurrences(todayData);
-        setLoadingToday(false);
-      } catch (error) {
-        setError('Erro ao carregar recorrências do dia');
-        setLoadingToday(false);
-      }
-    };
-
-    fetchStats();
-    fetchOverdueRecurrences();
-    fetchTodayRecurrences();
+    fetchData();
   }, []);
+
+  const DashboardCard = ({ title, value, icon, color, onClick }: any) => (
+    <Paper
+      elevation={2}
+      sx={{
+        p: 3,
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        transition: 'transform 0.3s, box-shadow 0.3s',
+        '&:hover': {
+          transform: 'translateY(-5px)',
+          boxShadow: 6,
+          cursor: 'pointer',
+        },
+      }}
+      onClick={onClick}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6" sx={{ color: 'text.secondary' }}>
+          {title}
+        </Typography>
+        <Box sx={{ color: color, bgcolor: `${color}22`, borderRadius: '50%', p: 1 }}>
+          {icon}
+        </Box>
+      </Box>
+      <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+        {loading ? <CircularProgress size={24} /> : value}
+      </Typography>
+    </Paper>
+  );
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        Dashboard
-      </Typography>
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Dashboard
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Bem-vindo ao sistema Mall Recorrente
+        </Typography>
+      </Box>
 
-      {error && (
-        <Paper sx={{ p: 2, mb: 2, bgcolor: 'error.light' }}>
-          <Typography color="error">{error}</Typography>
-        </Paper>
-      )}
-
-      {/* Resumo de estatísticas */}
-      <Grid container spacing={3} mb={4}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Paper
-            sx={{
-              p: 2,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              bgcolor: 'primary.light',
-              color: 'primary.contrastText'
-            }}
-          >
-            <RepeatIcon sx={{ fontSize: 40 }} />
-            <Typography variant="h6" component="div">
-              Recorrências Ativas
-            </Typography>
-            {loadingStats ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              <Typography variant="h4" component="div">
-                {stats?.active || 0}
-              </Typography>
-            )}
-          </Paper>
+          <DashboardCard
+            title="Clientes"
+            value={stats.customers}
+            icon={<PeopleIcon />}
+            color="#1976d2"
+            onClick={() => navigate('/clientes')}
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Paper
-            sx={{
-              p: 2,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              bgcolor: 'warning.light',
-              color: 'warning.contrastText'
-            }}
-          >
-            <WarningIcon sx={{ fontSize: 40 }} />
-            <Typography variant="h6" component="div">
-              Recorrências Atrasadas
-            </Typography>
-            {loadingStats ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              <Typography variant="h4" component="div">
-                {stats?.overdue || 0}
-              </Typography>
-            )}
-          </Paper>
+          <DashboardCard
+            title="Produtos"
+            value={stats.products}
+            icon={<InventoryIcon />}
+            color="#2e7d32"
+            onClick={() => navigate('/produtos')}
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Paper
-            sx={{
-              p: 2,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              bgcolor: 'success.light',
-              color: 'success.contrastText'
-            }}
-          >
-            <HistoryIcon sx={{ fontSize: 40 }} />
-            <Typography variant="h6" component="div">
-              Recorrências para Hoje
-            </Typography>
-            {loadingStats ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              <Typography variant="h4" component="div">
-                {stats?.today || 0}
-              </Typography>
-            )}
-          </Paper>
+          <DashboardCard
+            title="Recorrências"
+            value={stats.recurrences}
+            icon={<RepeatIcon />}
+            color="#ed6c02"
+            onClick={() => navigate('/recorrencias')}
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Paper
-            sx={{
-              p: 2,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              bgcolor: 'info.light',
-              color: 'info.contrastText'
-            }}
-          >
-            <PeopleIcon sx={{ fontSize: 40 }} />
-            <Typography variant="h6" component="div">
-              Próxima Semana
-            </Typography>
-            {loadingStats ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              <Typography variant="h4" component="div">
-                {stats?.nextWeek || 0}
-              </Typography>
-            )}
-          </Paper>
+          <DashboardCard
+            title="Pendentes"
+            value={stats.pendingRecurrences}
+            icon={<TrendingUpIcon />}
+            color="#d32f2f"
+            onClick={() => navigate('/recorrencias?filter=pending')}
+          />
         </Grid>
       </Grid>
 
-      {/* Recorrências atrasadas e do dia */}
+      <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
+        <Typography variant="h6" gutterBottom>
+          Ações Rápidas
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Grid container spacing={2}>
+          <Grid item>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => navigate('/clientes/novo')}
+            >
+              Novo Cliente
+            </Button>
+          </Grid>
+          <Grid item>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => navigate('/recorrencias/novo')}
+            >
+              Nova Recorrência
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
+
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" color="error" gutterBottom>
-                Recorrências Atrasadas
+          <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Recorrências Recentes
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Typography>
+                Aqui serão exibidas as recorrências mais recentes.
               </Typography>
-              <Divider />
-              
-              {loadingOverdue ? (
-                <Box display="flex" justifyContent="center" p={2}>
-                  <CircularProgress />
-                </Box>
-              ) : overdueRecurrences.length > 0 ? (
-                <List>
-                  {overdueRecurrences.map((recurrence: any) => (
-                    <ListItem key={recurrence._id} divider>
-                      <ListItemText
-                        primary={`${recurrence.customer.name}`}
-                        secondary={`Data: ${new Date(recurrence.nextDate).toLocaleDateString()} - R$ ${recurrence.totalValue.toFixed(2)}`}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
-                <Typography variant="body1" p={2}>
-                  Não há recorrências atrasadas.
-                </Typography>
-              )}
-            </CardContent>
-            <CardActions>
-              <Button
-                component={RouterLink}
-                to="/recurrences?overdue=true"
-                color="primary"
-              >
-                Ver todas
-              </Button>
-            </CardActions>
-          </Card>
+            )}
+          </Paper>
         </Grid>
-        
         <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" color="primary" gutterBottom>
-                Recorrências para Hoje
+          <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Clientes Recentes
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Typography>
+                Aqui serão exibidos os clientes recentemente adicionados.
               </Typography>
-              <Divider />
-              
-              {loadingToday ? (
-                <Box display="flex" justifyContent="center" p={2}>
-                  <CircularProgress />
-                </Box>
-              ) : todayRecurrences.length > 0 ? (
-                <List>
-                  {todayRecurrences.map((recurrence: any) => (
-                    <ListItem key={recurrence._id} divider>
-                      <ListItemText
-                        primary={`${recurrence.customer.name}`}
-                        secondary={`R$ ${recurrence.totalValue.toFixed(2)}`}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
-                <Typography variant="body1" p={2}>
-                  Não há recorrências para hoje.
-                </Typography>
-              )}
-            </CardContent>
-            <CardActions>
-              <Button
-                component={RouterLink}
-                to="/recurrences"
-                color="primary"
-              >
-                Ver todas
-              </Button>
-            </CardActions>
-          </Card>
+            )}
+          </Paper>
         </Grid>
       </Grid>
     </Box>

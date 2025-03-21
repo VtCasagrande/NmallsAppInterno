@@ -1,40 +1,37 @@
 import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Box, Button, Container, Typography, Paper } from '@mui/material';
-import { Home as HomeIcon } from '@mui/icons-material';
+import { Box, Typography, Button, Container, Paper } from '@mui/material';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
-const NotFound = () => {
+const NotFound: React.FC = () => {
   return (
     <Container maxWidth="md">
       <Paper
+        elevation={3}
         sx={{
-          py: 6,
-          px: 4,
-          mt: 10,
+          p: 5,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          textAlign: 'center'
+          mt: 8,
         }}
       >
-        <Typography variant="h1" color="primary" gutterBottom>
-          404
+        <ErrorOutlineIcon sx={{ fontSize: 100, color: 'error.main', mb: 2 }} />
+        <Typography variant="h3" gutterBottom align="center">
+          404 - Página não encontrada
         </Typography>
-        <Typography variant="h4" gutterBottom>
-          Página não encontrada
-        </Typography>
-        <Typography variant="body1" color="text.secondary" paragraph>
+        <Typography variant="h6" align="center" color="text.secondary" paragraph>
           A página que você está procurando não existe ou foi movida.
         </Typography>
-        <Box mt={3}>
+        <Box mt={4}>
           <Button
             variant="contained"
             color="primary"
             component={RouterLink}
             to="/"
-            startIcon={<HomeIcon />}
+            size="large"
           >
-            Voltar para a Página Inicial
+            Voltar para a página inicial
           </Button>
         </Box>
       </Paper>

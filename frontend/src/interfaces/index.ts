@@ -139,4 +139,121 @@ export interface PaginatedResponse<T> {
   count: number;
   pagination: Pagination;
   data: T[];
+}
+
+// Interfaces principais do sistema
+
+// Usuário
+export interface IUser {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  active?: boolean;
+  createdAt?: string;
+}
+
+// Cliente
+export interface ICustomer {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: {
+    street: string;
+    number: string;
+    complement?: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+  cpfCnpj?: string;
+  notes?: string;
+  active: boolean;
+  createdAt: string;
+}
+
+// Produto
+export interface IProduct {
+  _id: string;
+  name: string;
+  description?: string;
+  price: number;
+  sku?: string;
+  category?: string;
+  unit: string;
+  active: boolean;
+  createdAt: string;
+}
+
+// Recorrência
+export interface IRecurrence {
+  _id: string;
+  customer: ICustomer | string;
+  items: IRecurrenceItem[];
+  frequency: {
+    type: 'daily' | 'weekly' | 'monthly';
+    interval: number;
+    dayOfWeek?: number;
+    dayOfMonth?: number;
+  };
+  nextDate: string;
+  lastDate?: string;
+  totalValue: number;
+  status: 'active' | 'paused' | 'cancelled';
+  notes?: string;
+  createdAt: string;
+}
+
+// Item de recorrência
+export interface IRecurrenceItem {
+  product: IProduct | string;
+  quantity: number;
+  price: number;
+  total: number;
+}
+
+// Rota de entrega
+export interface IRoute {
+  _id: string;
+  name: string;
+  description?: string;
+  day: number; // 0-6 (domingo a sábado)
+  deliveries: IRouteDelivery[];
+  active: boolean;
+  createdAt: string;
+}
+
+// Entrega em uma rota
+export interface IRouteDelivery {
+  customer: ICustomer | string;
+  order: number;
+  recurrence?: IRecurrence | string;
+  notes?: string;
+}
+
+// Resposta paginada
+export interface IPaginatedResponse<T> {
+  data: T[];
+  page: number;
+  limit: number;
+  totalPages: number;
+  totalItems: number;
+}
+
+// Opções de filtro para consultas
+export interface IFilterOptions {
+  search?: string;
+  sort?: string;
+  filter?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+
+// Estado de carregamento
+export interface ILoadingState {
+  loading: boolean;
+  error: string | null;
 } 

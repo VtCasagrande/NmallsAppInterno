@@ -1,136 +1,98 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { User, AuthState } from '../interfaces';
-import * as authService from '../services/authService';
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { login as loginApi, getCurrentUser } from '../services/authService';
+import { IUser } from '../interfaces';
 
 interface AuthContextData {
-  authState: AuthState;
+  isAuthenticated: boolean;
+  user: IUser | null;
+  loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  register: (name: string, email: string, password: string, role: string) => Promise<void>;
-  loading: boolean;
+  isAdmin: () => boolean;
 }
 
-const AuthContext = createContext<AuthContextData>({} as AuthContextData);
+const AuthContext = createContext<AuthContextData>({
+  isAuthenticated: false,
+  user: null,
+  loading: true,
+  login: async () => {},
+  logout: () => {},
+  isAdmin: () => false,
+});
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    token: null,
-    isAuthenticated: false,
-    loading: true,
-    error: null
-  });
-  const [loading, setLoading] = useState(false);
+export const useAuth = () => useContext(AuthContext);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<IUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const loadUserFromStorage = async () => {
-      const token = localStorage.getItem('token');
-      const userStr = localStorage.getItem('user');
-      
-      if (token && userStr) {
-        try {
-          const user = JSON.parse(userStr) as User;
-          
-          setAuthState({
-            user,
-            token,
-            isAuthenticated: true,
-            loading: false,
-            error: null
-          });
-          
-          // Verificar se o token ainda é válido
-          const response = await authService.getMe();
-          
-          // Atualizar informações do usuário
-          setAuthState(prev => ({
-            ...prev,
-            user: response.data
-          }));
-        } catch (error) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          
-          setAuthState({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            loading: false,
-            error: 'Sessão expirada. Por favor, faça login novamente.'
-          });
+    const loadUser = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          setLoading(false);
+          return;
         }
-      } else {
-        setAuthState({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-          loading: false,
-          error: null
-        });
+        
+        const userData = await getCurrentUser();
+        setUser(userData);
+      } catch (error) {
+        console.error('Erro ao carregar usuário:', error);
+        localStorage.removeItem('token');
+      } finally {
+        setLoading(false);
       }
     };
-    
-    loadUserFromStorage();
+
+    loadUser();
   }, []);
 
   const login = async (email: string, password: string) => {
-    setLoading(true);
     try {
-      const response = await authService.login(email, password);
-      
-      setAuthState({
-        user: response.user,
-        token: response.token,
-        isAuthenticated: true,
-        loading: false,
-        error: null
+      setLoading(true);
+      const data = await loginApi(email, password);
+      localStorage.setItem('token', data.token);
+      setUser({
+        _id: data._id,
+        name: data.name,
+        email: data.email,
+        role: data.role,
       });
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Erro ao fazer login';
-      
-      setAuthState({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-        loading: false,
-        error: errorMessage
-      });
-      
-      throw new Error(errorMessage);
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Erro ao fazer login:', error);
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
   const logout = () => {
-    authService.logout();
-    
-    setAuthState({
-      user: null,
-      token: null,
-      isAuthenticated: false,
-      loading: false,
-      error: null
-    });
+    localStorage.removeItem('token');
+    setUser(null);
+    navigate('/login');
   };
 
-  const register = async (name: string, email: string, password: string, role: string) => {
-    setLoading(true);
-    try {
-      await authService.register(name, email, password, role);
-      setLoading(false);
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Erro ao registrar usuário';
-      setLoading(false);
-      throw new Error(errorMessage);
-    }
+  const isAdmin = () => {
+    return user?.role === 'admin';
   };
 
   return (
-    <AuthContext.Provider value={{ authState, login, logout, register, loading }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated: !!user,
+        user,
+        loading,
+        login,
+        logout,
+        isAdmin,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => useContext(AuthContext); 
+}; 

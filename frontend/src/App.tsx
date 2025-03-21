@@ -1,35 +1,58 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
-import { ptBR } from '@mui/material/locale';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
 
 // Contextos
 import { AuthProvider } from './contexts/AuthContext';
 
-// Layouts
+// Componentes de Layout
 import MainLayout from './components/Layout/MainLayout';
 import PrivateRoute from './components/Layout/PrivateRoute';
 
-// Páginas
+// Páginas de Auth
 import LoginPage from './pages/auth/LoginPage';
-import Dashboard from './pages/Dashboard';
-import NotFound from './pages/NotFound';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 
-const theme = createTheme(
-  {
-    palette: {
-      primary: {
-        main: '#1976d2',
-      },
-      secondary: {
-        main: '#f50057',
-      },
+// Páginas de Dashboard
+import DashboardPage from './pages/Dashboard';
+import NotFoundPage from './pages/NotFound';
+
+// Páginas de Clientes
+import CustomersListPage from './pages/customers/CustomersList';
+import CustomerDetailsPage from './pages/customers/CustomerDetails';
+import CustomerFormPage from './pages/customers/CustomerForm';
+
+// Páginas de Produtos
+import ProductsListPage from './pages/products/ProductsList';
+import ProductDetailsPage from './pages/products/ProductDetails';
+import ProductFormPage from './pages/products/ProductForm';
+
+// Páginas de Recorrências
+import RecurrencesListPage from './pages/recurrences/RecurrencesList';
+import RecurrenceDetailsPage from './pages/recurrences/RecurrenceDetails';
+import RecurrenceFormPage from './pages/recurrences/RecurrenceForm';
+
+// Páginas de Usuários (apenas admin)
+import UsersListPage from './pages/users/UsersList';
+import UserFormPage from './pages/users/UserForm';
+
+// Tema da aplicação
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#dc004e',
+    },
+    background: {
+      default: '#f5f5f5',
     },
   },
-  ptBR
-);
+});
 
-const App: React.FC = () => {
+function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -38,47 +61,44 @@ const App: React.FC = () => {
           <Routes>
             {/* Rotas públicas */}
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
             
-            {/* Redirecionamento da rota raiz */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            
-            {/* Rotas protegidas */}
-            <Route element={<PrivateRoute />}>
-              <Route element={<MainLayout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                
-                {/* Placeholders para páginas futuras */}
-                <Route path="/customers" element={<div>Página de Clientes</div>} />
-                <Route path="/customers/new" element={<div>Novo Cliente</div>} />
-                <Route path="/customers/:id" element={<div>Detalhes do Cliente</div>} />
-                <Route path="/customers/:id/edit" element={<div>Editar Cliente</div>} />
-                
-                <Route path="/products" element={<div>Página de Produtos</div>} />
-                <Route path="/products/new" element={<div>Novo Produto</div>} />
-                <Route path="/products/:id" element={<div>Detalhes do Produto</div>} />
-                <Route path="/products/:id/edit" element={<div>Editar Produto</div>} />
-                
-                <Route path="/recurrences" element={<div>Página de Recorrências</div>} />
-                <Route path="/recurrences/new" element={<div>Nova Recorrência</div>} />
-                <Route path="/recurrences/:id" element={<div>Detalhes da Recorrência</div>} />
-                <Route path="/recurrences/:id/edit" element={<div>Editar Recorrência</div>} />
-                
-                <Route path="/routes" element={<div>Página de Rotas</div>} />
-                <Route path="/routes/new" element={<div>Nova Rota</div>} />
-                <Route path="/routes/:id" element={<div>Detalhes da Rota</div>} />
-                <Route path="/routes/:id/edit" element={<div>Editar Rota</div>} />
-                
-                <Route path="/settings" element={<div>Configurações</div>} />
-              </Route>
+            {/* Rotas privadas */}
+            <Route path="/" element={<PrivateRoute><MainLayout /></PrivateRoute>}>
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<DashboardPage />} />
+              
+              {/* Rotas de Clientes */}
+              <Route path="clientes" element={<CustomersListPage />} />
+              <Route path="clientes/novo" element={<CustomerFormPage />} />
+              <Route path="clientes/editar/:id" element={<CustomerFormPage />} />
+              <Route path="clientes/:id" element={<CustomerDetailsPage />} />
+              
+              {/* Rotas de Produtos */}
+              <Route path="produtos" element={<ProductsListPage />} />
+              <Route path="produtos/novo" element={<ProductFormPage />} />
+              <Route path="produtos/editar/:id" element={<ProductFormPage />} />
+              <Route path="produtos/:id" element={<ProductDetailsPage />} />
+              
+              {/* Rotas de Recorrências */}
+              <Route path="recorrencias" element={<RecurrencesListPage />} />
+              <Route path="recorrencias/novo" element={<RecurrenceFormPage />} />
+              <Route path="recorrencias/editar/:id" element={<RecurrenceFormPage />} />
+              <Route path="recorrencias/:id" element={<RecurrenceDetailsPage />} />
+              
+              {/* Rotas de Usuários (apenas admin) */}
+              <Route path="usuarios" element={<UsersListPage />} />
+              <Route path="usuarios/novo" element={<UserFormPage />} />
+              <Route path="usuarios/editar/:id" element={<UserFormPage />} />
             </Route>
             
             {/* Página 404 */}
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Router>
       </AuthProvider>
     </ThemeProvider>
   );
-};
+}
 
 export default App; 

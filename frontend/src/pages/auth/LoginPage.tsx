@@ -1,117 +1,119 @@
 import React, { useState } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
-  Avatar,
-  Button,
-  CssBaseline,
-  TextField,
-  Link,
-  Grid,
+  Container,
   Box,
   Typography,
-  Container,
+  TextField,
+  Button,
+  Paper,
+  Link,
+  Grid,
+  CircularProgress,
   Alert,
-  Paper
 } from '@mui/material';
-import { LockOutlined as LockOutlinedIcon } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 
 const LoginPage: React.FC = () => {
-  const navigate = useNavigate();
-  const { login, loading, authState } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const { login, loading } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     
+    // Validação simples
+    if (!email || !password) {
+      setError('Por favor, preencha todos os campos');
+      return;
+    }
+
     try {
+      setError('');
       await login(email, password);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Erro ao fazer login. Verifique suas credenciais.');
     }
   };
 
   return (
     <Container component="main" maxWidth="xs">
-      <CssBaseline />
-      <Paper
-        elevation={3}
+      <Box
         sx={{
           marginTop: 8,
-          p: 4,
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center'
+          alignItems: 'center',
         }}
       >
-        <Avatar sx={{ m: 1, bgcolor: 'primary.main' }}>
-          <LockOutlinedIcon />
-        </Avatar>
-        <Typography component="h1" variant="h5">
-          Login
-        </Typography>
-        
-        {error && (
-          <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
-            {error}
-          </Alert>
-        )}
-        
-        {authState.error && (
-          <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
-            {authState.error}
-          </Alert>
-        )}
-        
-        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="email"
-            label="Email"
-            name="email"
-            autoComplete="email"
-            autoFocus
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label="Senha"
-            type="password"
-            id="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 3, mb: 2 }}
-            disabled={loading}
-          >
-            {loading ? 'Entrando...' : 'Entrar'}
-          </Button>
-          <Grid container>
-            <Grid item xs>
-              <Link component={RouterLink} to="#" variant="body2">
-                Esqueceu a senha?
-              </Link>
+        <Paper
+          elevation={3}
+          sx={{
+            padding: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            width: '100%',
+          }}
+        >
+          <Typography component="h1" variant="h5" sx={{ mb: 3 }}>
+            Mall Recorrente
+          </Typography>
+          
+          {error && (
+            <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          
+          <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1, width: '100%' }}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="email"
+              label="Email"
+              name="email"
+              autoComplete="email"
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              label="Senha"
+              type="password"
+              id="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              disabled={loading}
+              sx={{ mt: 3, mb: 2 }}
+            >
+              {loading ? <CircularProgress size={24} /> : 'Entrar'}
+            </Button>
+            <Grid container>
+              <Grid item xs>
+                <Link component={RouterLink} to="/esqueci-senha" variant="body2">
+                  Esqueceu a senha?
+                </Link>
+              </Grid>
             </Grid>
-          </Grid>
-        </Box>
-      </Paper>
-      <Box mt={2} textAlign="center">
-        <Typography variant="body2" color="text.secondary" align="center">
+          </Box>
+        </Paper>
+        
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 5 }}>
           © {new Date().getFullYear()} Mall Recorrente
         </Typography>
       </Box>
