@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-password}
+    networks:
+      - mall-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    restart: always
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    depends_on:
+      - mongodb
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=5000
+      - MONGO_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-password}@mongodb:27017/mallrecorrente?authSource=admin
+      - JWT_SECRET=${JWT_SECRET:-suachavesupersecretal0p9k12wl8r74ja7das}
+      - JWT_EXPIRE=${JWT_EXPIRE:-30d}
+    networks:
+      - mall-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: always
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=http://localhost:${BACKEND_PORT:-5000}/api
+    networks:
+      - mall-network
+
+networks:
+  mall-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local 
