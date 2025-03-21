@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
@@ -57,45 +57,43 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <Router>
-          <Routes>
-            {/* Rotas públicas */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
+        <Routes>
+          {/* Rotas públicas */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
+          
+          {/* Rotas privadas */}
+          <Route path="/" element={<PrivateRoute><MainLayout /></PrivateRoute>}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<DashboardPage />} />
             
-            {/* Rotas privadas */}
-            <Route path="/" element={<PrivateRoute><MainLayout /></PrivateRoute>}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard" element={<DashboardPage />} />
-              
-              {/* Rotas de Clientes */}
-              <Route path="clientes" element={<CustomersListPage />} />
-              <Route path="clientes/novo" element={<CustomerFormPage />} />
-              <Route path="clientes/editar/:id" element={<CustomerFormPage />} />
-              <Route path="clientes/:id" element={<CustomerDetailsPage />} />
-              
-              {/* Rotas de Produtos */}
-              <Route path="produtos" element={<ProductsListPage />} />
-              <Route path="produtos/novo" element={<ProductFormPage />} />
-              <Route path="produtos/editar/:id" element={<ProductFormPage />} />
-              <Route path="produtos/:id" element={<ProductDetailsPage />} />
-              
-              {/* Rotas de Recorrências */}
-              <Route path="recorrencias" element={<RecurrencesListPage />} />
-              <Route path="recorrencias/novo" element={<RecurrenceFormPage />} />
-              <Route path="recorrencias/editar/:id" element={<RecurrenceFormPage />} />
-              <Route path="recorrencias/:id" element={<RecurrenceDetailsPage />} />
-              
-              {/* Rotas de Usuários (apenas admin) */}
-              <Route path="usuarios" element={<UsersListPage />} />
-              <Route path="usuarios/novo" element={<UserFormPage />} />
-              <Route path="usuarios/editar/:id" element={<UserFormPage />} />
-            </Route>
+            {/* Rotas de Clientes */}
+            <Route path="clientes" element={<CustomersListPage />} />
+            <Route path="clientes/novo" element={<CustomerFormPage />} />
+            <Route path="clientes/editar/:id" element={<CustomerFormPage />} />
+            <Route path="clientes/:id" element={<CustomerDetailsPage />} />
             
-            {/* Página 404 */}
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Router>
+            {/* Rotas de Produtos */}
+            <Route path="produtos" element={<ProductsListPage />} />
+            <Route path="produtos/novo" element={<ProductFormPage />} />
+            <Route path="produtos/editar/:id" element={<ProductFormPage />} />
+            <Route path="produtos/:id" element={<ProductDetailsPage />} />
+            
+            {/* Rotas de Recorrências */}
+            <Route path="recorrencias" element={<RecurrencesListPage />} />
+            <Route path="recorrencias/novo" element={<RecurrenceFormPage />} />
+            <Route path="recorrencias/editar/:id" element={<RecurrenceFormPage />} />
+            <Route path="recorrencias/:id" element={<RecurrenceDetailsPage />} />
+            
+            {/* Rotas de Usuários (apenas admin) */}
+            <Route path="usuarios" element={<UsersListPage />} />
+            <Route path="usuarios/novo" element={<UserFormPage />} />
+            <Route path="usuarios/editar/:id" element={<UserFormPage />} />
+          </Route>
+          
+          {/* Página 404 */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
       </AuthProvider>
     </ThemeProvider>
   );
