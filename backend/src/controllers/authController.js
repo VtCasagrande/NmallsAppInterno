@@ -55,12 +55,13 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
 
     // Verificar usuário e senha
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select('+password');
 
     if (!user) {
       return res.status(401).json({ message: 'Email ou senha inválidos' });
     }
 
+    // Usar bcrypt.compare diretamente para comparar a senha
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
