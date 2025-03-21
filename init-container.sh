@@ -3,34 +3,59 @@
 # Definir variáveis de ambiente
 export NODE_ENV=production
 
-# Verificar se os arquivos necessários existem no frontend
+# Verificar arquivos e diretórios
+echo "==== Verificando arquivos e diretórios ===="
+
+# Verificar se o diretório build do frontend existe
 if [ ! -d "/app/frontend/build" ]; then
-  echo "AVISO: Diretório build não encontrado. Criando um básico..."
+  echo "ERRO: Diretório build não encontrado. Criando um básico..."
   mkdir -p /app/frontend/build
   echo "<html><body><h1>Mall Recorrente</h1><p>Frontend em construção</p></body></html>" > /app/frontend/build/index.html
+else
+  echo "Diretório build encontrado em /app/frontend/build"
+  ls -la /app/frontend/build
 fi
 
-# Verificar se o nginx está configurado corretamente
+# Verificar configuração do nginx
 if [ ! -f "/etc/nginx/conf.d/default.conf" ]; then
   echo "ERRO: Configuração do nginx não encontrada. Copiando configuração padrão..."
   cp /app/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+else
+  echo "Arquivo de configuração do Nginx encontrado"
+  cat /etc/nginx/conf.d/default.conf
 fi
 
-# Copiar os arquivos estáticos do frontend para o diretório do Nginx
-echo "Copiando arquivos estáticos do frontend para o Nginx..."
+# Limpar diretório do nginx e copiar os arquivos estáticos
+echo "==== Preparando diretório do Nginx ===="
+rm -rf /usr/share/nginx/html/*
 mkdir -p /usr/share/nginx/html
-cp -r /app/frontend/build/* /usr/share/nginx/html/
-echo "Permissões nos arquivos do Nginx..."
-chmod -R 755 /usr/share/nginx/html
+
+echo "Copiando arquivos estáticos do frontend para o Nginx..."
+cp -rv /app/frontend/build/* /usr/share/nginx/html/
+
+echo "Definindo permissões nos arquivos do Nginx..."
+find /usr/share/nginx/html -type d -exec chmod 755 {} \;
+find /usr/share/nginx/html -type f -exec chmod 644 {} \;
+
+echo "Conteúdo do diretório do Nginx:"
+ls -la /usr/share/nginx/html
 
 # Verificar se os arquivos foram copiados corretamente
 if [ ! -f "/usr/share/nginx/html/index.html" ]; then
   echo "ERRO: index.html não encontrado. Criando fallback..."
   echo "<html><body><h1>Mall Recorrente</h1><p>Frontend em construção</p></body></html>" > /usr/share/nginx/html/index.html
+else
+  echo "index.html encontrado em /usr/share/nginx/html"
 fi
 
-# Iniciar o servidor nginx para o frontend
-echo "Iniciando servidor nginx para o frontend..."
+# Iniciar serviços
+echo "==== Iniciando serviços ===="
+
+# Reiniciar nginx para garantir que a configuração seja carregada
+echo "Reiniciando o nginx..."
+nginx -t
+killall -9 nginx || echo "Nginx não estava rodando"
+sleep 1
 nginx -g "daemon on;"
 
 # Verificar se o nginx iniciou corretamente
@@ -39,6 +64,7 @@ if ! pgrep -x "nginx" > /dev/null; then
   cat /var/log/nginx/error.log
 else
   echo "Nginx iniciado com sucesso!"
+  ps aux | grep nginx
 fi
 
 # Navegar para a pasta do backend
