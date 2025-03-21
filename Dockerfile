@@ -83,8 +83,7 @@ RUN ls -la build && \
 WORKDIR /app/backend
 RUN npm install --no-audit --no-fund
 
-# Configurar nginx
-COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+# Configurar nginx - deixando a configuração para o script de inicialização
 
 # Voltar para o diretório raiz
 WORKDIR /app
@@ -94,6 +93,9 @@ RUN mkdir -p /var/log/nginx && \
     touch /var/log/nginx/access.log && \
     touch /var/log/nginx/error.log && \
     chown -R root:root /var/log/nginx
+
+# Remover configuração padrão do nginx para evitar conflitos
+RUN rm -f /etc/nginx/conf.d/default.conf
 
 EXPOSE 80 5000
 

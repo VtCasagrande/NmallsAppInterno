@@ -17,12 +17,14 @@ else
 fi
 
 # Verificar configuração do nginx
-if [ ! -f "/etc/nginx/conf.d/default.conf" ]; then
-  echo "ERRO: Configuração do nginx não encontrada. Copiando configuração padrão..."
-  cp /app/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+if [ ! -f "/app/frontend/nginx.conf" ]; then
+  echo "ERRO: Configuração do nginx não encontrada."
+  exit 1
 else
-  echo "Arquivo de configuração do Nginx encontrado"
-  cat /etc/nginx/conf.d/default.conf
+  echo "Arquivo de configuração do Nginx encontrado em /app/frontend/nginx.conf"
+  # Copiar para o local padrão do nginx
+  cp /app/frontend/nginx.conf /etc/nginx/nginx.conf
+  echo "Configuração copiada para /etc/nginx/nginx.conf"
 fi
 
 # Limpar diretório do nginx e copiar os arquivos estáticos
@@ -51,12 +53,15 @@ fi
 # Iniciar serviços
 echo "==== Iniciando serviços ===="
 
-# Reiniciar nginx para garantir que a configuração seja carregada
-echo "Reiniciando o nginx..."
+# Verificar a configuração do nginx
+echo "Verificando configuração do Nginx..."
 nginx -t
+
+# Reiniciar nginx para garantir que a configuração seja carregada
+echo "Iniciando o nginx..."
 killall -9 nginx || echo "Nginx não estava rodando"
 sleep 1
-nginx -g "daemon on;"
+nginx
 
 # Verificar se o nginx iniciou corretamente
 if ! pgrep -x "nginx" > /dev/null; then
