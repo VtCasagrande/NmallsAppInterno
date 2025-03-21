@@ -8,11 +8,7 @@ RUN apk add --no-cache nginx curl bash procps net-tools
 # Diretório de trabalho
 WORKDIR /app
 
-# Copiar package.json para instalar dependências antes
-COPY package*.json ./
-RUN npm install --no-audit --no-fund
-
-# Copiar o resto dos arquivos
+# Copiar o código do projeto
 COPY . .
 
 # Garantir que o script de inicialização seja executável
@@ -21,8 +17,7 @@ RUN chmod +x init-container.sh
 # Configurar frontend
 WORKDIR /app/frontend
 
-# Copiar package.json primeiro para instalar dependências
-COPY frontend/package*.json ./
+# Instalar dependências do frontend
 RUN npm install --no-audit --no-fund
 
 # Criar diretório public e arquivos necessários
@@ -99,7 +94,8 @@ RUN mkdir -p build/src && cp -r /app/frontend/src/* build/src/ || echo "Falha ao
 
 # Configurar backend
 WORKDIR /app/backend
-COPY backend/package*.json ./
+
+# Instalar dependências do backend
 RUN npm install --no-audit --no-fund
 
 # Voltar para o diretório raiz
