@@ -64,101 +64,79 @@ exports.createRecurrence = async (req, res) => {
   }
 };
 
-// @desc    Obter todas as recorrências
+// @desc    Obter todas as recorrências com paginação e filtros
 // @route   GET /api/recurrences
 // @access  Private
 exports.getRecurrences = async (req, res) => {
   try {
-    // Preparar a query
-    let query = Recurrence.find()
-      .populate({
-        path: 'customer',
-        select: 'name cpf phone'
-      })
-      .populate({
-        path: 'createdBy',
-        select: 'name'
-      });
-
-    // Filtrar por status
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    
+    // Filtros
+    const filter = { };
+    
+    // Filtro por status
     if (req.query.status) {
-      query = query.where('status').equals(req.query.status);
+      filter.status = req.query.status;
     }
-
-    // Filtrar por cliente
+    
+    // Filtro por cliente
     if (req.query.customer) {
-      query = query.where('customer').equals(req.query.customer);
+      filter.customer = req.query.customer;
     }
-
-    // Filtrar por data de próxima compra
-    if (req.query.overdue === 'true') {
+    
+    // Filtro por próxima data
+    if (req.query.nextDate) {
+      const startDate = new Date(req.query.nextDate);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(req.query.nextDate);
+      endDate.setHours(23, 59, 59, 999);
+      
+      filter.nextDate = { $gte: startDate, $lte: endDate };
+    }
+    
+    // Filtro por data próxima
+    if (req.query.upcoming) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      query = query.where('nextDate').lt(today).where('status').equals('active');
-    }
-
-    // Busca por nome do cliente ou CPF
-    if (req.query.search) {
-      const customers = await Customer.find({
-        $or: [
-          { name: new RegExp(req.query.search, 'i') },
-          { cpf: new RegExp(req.query.search, 'i') }
-        ]
-      }).select('_id');
       
-      const customerIds = customers.map(customer => customer._id);
-      query = query.where('customer').in(customerIds);
+      const future = new Date();
+      future.setDate(future.getDate() + parseInt(req.query.upcoming));
+      future.setHours(23, 59, 59, 999);
+      
+      filter.nextDate = { $gte: today, $lte: future };
+      filter.status = 'active';
     }
-
-    // Paginação
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 10;
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const total = await Recurrence.countDocuments(query.getQuery());
-
-    query = query.skip(startIndex).limit(limit);
-
-    // Ordenação
-    const sort = {};
-    if (req.query.sortBy) {
-      const parts = req.query.sortBy.split(':');
-      sort[parts[0]] = parts[1] === 'desc' ? -1 : 1;
-      query = query.sort(sort);
-    } else {
-      query = query.sort({ nextDate: 1 });
-    }
-
-    // Executar query
-    const recurrences = await query;
-
-    // Pagination result
-    const pagination = {};
-
-    if (endIndex < total) {
-      pagination.next = {
-        page: page + 1,
-        limit
-      };
-    }
-
-    if (startIndex > 0) {
-      pagination.prev = {
-        page: page - 1,
-        limit
-      };
-    }
-
-    res.status(200).json({
+    
+    // Executar a consulta com paginação
+    const recurrences = await Recurrence.find(filter)
+      .populate('customer', 'name cpf phone')
+      .populate('items.product', 'name ean')
+      .sort({ nextDate: 1 })
+      .skip(skip)
+      .limit(limit);
+    
+    // Contar total para paginação
+    const total = await Recurrence.countDocuments(filter);
+    
+    res.json({
       success: true,
       count: recurrences.length,
-      pagination,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit)
+      },
       data: recurrences
     });
   } catch (error) {
-    res.status(400).json({
+    console.error(`Erro ao listar recorrências: ${error.message}`);
+    res.status(500).json({ 
       success: false,
-      error: error.message
+      message: 'Erro ao listar recorrências', 
+      error: error.message 
     });
   }
 };
@@ -166,37 +144,30 @@ exports.getRecurrences = async (req, res) => {
 // @desc    Obter uma recorrência pelo ID
 // @route   GET /api/recurrences/:id
 // @access  Private
-exports.getRecurrence = async (req, res) => {
+exports.getRecurrenceById = async (req, res) => {
   try {
     const recurrence = await Recurrence.findById(req.params.id)
-      .populate({
-        path: 'customer',
-        select: 'name cpf phone email address'
-      })
-      .populate({
-        path: 'createdBy',
-        select: 'name'
-      })
-      .populate({
-        path: 'logs.registeredBy',
-        select: 'name'
-      });
-
+      .populate('customer')
+      .populate('items.product')
+      .populate('logs.registeredBy', 'name');
+    
     if (!recurrence) {
-      return res.status(404).json({
+      return res.status(404).json({ 
         success: false,
-        error: 'Recorrência não encontrada'
+        message: 'Recorrência não encontrada' 
       });
     }
-
-    res.status(200).json({
+    
+    res.json({
       success: true,
       data: recurrence
     });
   } catch (error) {
-    res.status(400).json({
+    console.error(`Erro ao buscar recorrência: ${error.message}`);
+    res.status(500).json({ 
       success: false,
-      error: error.message
+      message: 'Erro ao buscar recorrência', 
+      error: error.message 
     });
   }
 };
@@ -206,123 +177,224 @@ exports.getRecurrence = async (req, res) => {
 // @access  Private
 exports.updateRecurrence = async (req, res) => {
   try {
+    const {
+      periodDays,
+      items,
+      discount,
+      status,
+      nextDate
+    } = req.body;
+    
     let recurrence = await Recurrence.findById(req.params.id);
-
+    
     if (!recurrence) {
-      return res.status(404).json({
+      return res.status(404).json({ 
         success: false,
-        error: 'Recorrência não encontrada'
+        message: 'Recorrência não encontrada' 
       });
     }
-
-    // Verificar itens e produtos se estão sendo atualizados
-    if (req.body.items && req.body.items.length > 0) {
-      for (let item of req.body.items) {
+    
+    // Atualizar os campos
+    const updateFields = {};
+    
+    if (periodDays) updateFields.periodDays = periodDays;
+    if (discount !== undefined) updateFields.discount = discount;
+    if (status) updateFields.status = status;
+    if (nextDate) updateFields.nextDate = new Date(nextDate);
+    
+    // Processar itens se fornecidos
+    if (items && items.length > 0) {
+      const processedItems = [];
+      
+      for (const item of items) {
         const product = await Product.findById(item.product);
         if (!product) {
-          return res.status(404).json({
+          return res.status(400).json({ 
             success: false,
-            error: `Produto ${item.product} não encontrado`
+            message: `Produto com ID ${item.product} não encontrado` 
           });
         }
         
-        // Adicionar informações do produto ao item
-        item.ean = product.ean;
-        item.name = product.name;
-        
-        // Se não for fornecido o preço, usar o preço do produto
-        if (!item.price) {
-          item.price = product.price;
-        }
+        processedItems.push({
+          product: product._id,
+          ean: product.ean,
+          name: product.name,
+          quantity: item.quantity,
+          price: item.price || product.price
+        });
       }
+      
+      updateFields.items = processedItems;
     }
-
-    recurrence = await Recurrence.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
-    });
-
-    res.status(200).json({
+    
+    // Atualizar a recorrência
+    recurrence = await Recurrence.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateFields },
+      { new: true, runValidators: true }
+    ).populate('customer', 'name cpf phone')
+     .populate('items.product', 'name ean');
+    
+    res.json({
       success: true,
       data: recurrence
     });
   } catch (error) {
-    res.status(400).json({
+    console.error(`Erro ao atualizar recorrência: ${error.message}`);
+    res.status(500).json({ 
       success: false,
-      error: error.message
+      message: 'Erro ao atualizar recorrência', 
+      error: error.message 
+    });
+  }
+};
+
+// @desc    Confirmar uma compra recorrente
+// @route   POST /api/recurrences/:id/confirm
+// @access  Private
+exports.confirmRecurrence = async (req, res) => {
+  try {
+    const { notes } = req.body;
+    
+    const recurrence = await Recurrence.findById(req.params.id);
+    
+    if (!recurrence) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Recorrência não encontrada' 
+      });
+    }
+    
+    // Verificar se a recorrência está ativa
+    if (recurrence.status !== 'active') {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Apenas recorrências ativas podem ser confirmadas' 
+      });
+    }
+    
+    // Confirmar a compra e atualizar próxima data
+    await recurrence.confirmPurchase(req.user.id, notes);
+    
+    const updatedRecurrence = await Recurrence.findById(req.params.id)
+      .populate('customer', 'name cpf phone')
+      .populate('items.product', 'name ean')
+      .populate('logs.registeredBy', 'name');
+    
+    res.json({
+      success: true,
+      message: 'Compra recorrente confirmada com sucesso',
+      data: updatedRecurrence
+    });
+  } catch (error) {
+    console.error(`Erro ao confirmar recorrência: ${error.message}`);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erro ao confirmar recorrência', 
+      error: error.message 
+    });
+  }
+};
+
+// @desc    Pular uma ocorrência de recorrência
+// @route   POST /api/recurrences/:id/skip
+// @access  Private
+exports.skipRecurrence = async (req, res) => {
+  try {
+    const { notes } = req.body;
+    
+    let recurrence = await Recurrence.findById(req.params.id);
+    
+    if (!recurrence) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Recorrência não encontrada' 
+      });
+    }
+    
+    // Verificar se a recorrência está ativa
+    if (recurrence.status !== 'active') {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Apenas recorrências ativas podem ser puladas' 
+      });
+    }
+    
+    // Adicionar log de recorrência pulada
+    recurrence.logs.push({
+      date: new Date(),
+      status: 'skipped',
+      notes: notes || 'Compra pulada pelo usuário',
+      registeredBy: req.user.id
+    });
+    
+    // Calcular a próxima data de recorrência
+    const nextDate = new Date(recurrence.nextDate);
+    nextDate.setDate(nextDate.getDate() + recurrence.periodDays);
+    recurrence.nextDate = nextDate;
+    
+    await recurrence.save();
+    
+    const updatedRecurrence = await Recurrence.findById(req.params.id)
+      .populate('customer', 'name cpf phone')
+      .populate('items.product', 'name ean')
+      .populate('logs.registeredBy', 'name');
+    
+    res.json({
+      success: true,
+      message: 'Compra recorrente pulada com sucesso',
+      data: updatedRecurrence
+    });
+  } catch (error) {
+    console.error(`Erro ao pular recorrência: ${error.message}`);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erro ao pular recorrência', 
+      error: error.message 
     });
   }
 };
 
 // @desc    Cancelar uma recorrência
-// @route   PUT /api/recurrences/:id/cancel
+// @route   DELETE /api/recurrences/:id
 // @access  Private
 exports.cancelRecurrence = async (req, res) => {
   try {
-    const recurrence = await Recurrence.findById(req.params.id);
-
+    const { reason } = req.body;
+    
+    let recurrence = await Recurrence.findById(req.params.id);
+    
     if (!recurrence) {
-      return res.status(404).json({
+      return res.status(404).json({ 
         success: false,
-        error: 'Recorrência não encontrada'
+        message: 'Recorrência não encontrada' 
       });
     }
-
+    
+    // Atualizar o status para cancelado
+    recurrence.status = 'canceled';
+    
     // Adicionar log de cancelamento
     recurrence.logs.push({
       date: new Date(),
       status: 'canceled',
-      notes: req.body.notes || 'Cancelado pelo usuário',
+      notes: reason || 'Cancelada pelo usuário',
       registeredBy: req.user.id
     });
-
-    recurrence.status = 'canceled';
+    
     await recurrence.save();
-
-    res.status(200).json({
+    
+    res.json({
       success: true,
-      data: recurrence
+      message: 'Recorrência cancelada com sucesso',
+      data: { id: recurrence._id }
     });
   } catch (error) {
-    res.status(400).json({
+    console.error(`Erro ao cancelar recorrência: ${error.message}`);
+    res.status(500).json({ 
       success: false,
-      error: error.message
-    });
-  }
-};
-
-// @desc    Confirmar compra de uma recorrência
-// @route   PUT /api/recurrences/:id/confirm
-// @access  Private
-exports.confirmPurchase = async (req, res) => {
-  try {
-    const recurrence = await Recurrence.findById(req.params.id);
-
-    if (!recurrence) {
-      return res.status(404).json({
-        success: false,
-        error: 'Recorrência não encontrada'
-      });
-    }
-
-    if (recurrence.status !== 'active') {
-      return res.status(400).json({
-        success: false,
-        error: 'Apenas recorrências ativas podem ter compras confirmadas'
-      });
-    }
-
-    // Atualizar a recorrência
-    await recurrence.confirmPurchase(req.user.id, req.body.notes);
-
-    res.status(200).json({
-      success: true,
-      data: recurrence
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      error: error.message
+      message: 'Erro ao cancelar recorrência', 
+      error: error.message 
     });
   }
 };

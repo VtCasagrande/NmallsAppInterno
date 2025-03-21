@@ -1,32 +1,31 @@
 const express = require('express');
-const {
-  createRecurrence,
-  getRecurrences,
-  getRecurrence,
-  updateRecurrence,
-  cancelRecurrence,
-  confirmPurchase,
-  getRecurrenceStats
+const router = express.Router();
+const { 
+  getRecurrences, 
+  getRecurrenceById, 
+  createRecurrence, 
+  updateRecurrence, 
+  confirmRecurrence,
+  skipRecurrence,
+  cancelRecurrence
 } = require('../controllers/recurrenceController');
 const { protect } = require('../middleware/auth');
 
-const router = express.Router();
+// Todas as rotas requerem autenticação
+router.use(protect);
 
+// Rotas principais
 router.route('/')
-  .post(protect, createRecurrence)
-  .get(protect, getRecurrences);
-
-router.route('/stats')
-  .get(protect, getRecurrenceStats);
+  .get(getRecurrences)
+  .post(createRecurrence);
 
 router.route('/:id')
-  .get(protect, getRecurrence)
-  .put(protect, updateRecurrence);
+  .get(getRecurrenceById)
+  .put(updateRecurrence)
+  .delete(cancelRecurrence);
 
-router.route('/:id/cancel')
-  .put(protect, cancelRecurrence);
-
-router.route('/:id/confirm')
-  .put(protect, confirmPurchase);
+// Rotas específicas
+router.post('/:id/confirm', confirmRecurrence);
+router.post('/:id/skip', skipRecurrence);
 
 module.exports = router; 
