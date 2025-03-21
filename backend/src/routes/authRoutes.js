@@ -1,11 +1,16 @@
 const express = require('express');
-const { register, login, getMe } = require('../controllers/authController');
-const { protect, authorize } = require('../middleware/auth');
-
 const router = express.Router();
+const { login, register, getCurrentUser } = require('../controllers/authController');
+const { protect } = require('../middleware/auth');
 
-router.post('/register', protect, authorize('admin'), register);
+// Rotas de autenticação
 router.post('/login', login);
-router.get('/me', protect, getMe);
+router.post('/register', register);
+router.get('/me', protect, getCurrentUser);
+
+// Rota de teste
+router.get('/test', (req, res) => {
+  res.json({ message: 'Rota de auth funcionando' });
+});
 
 module.exports = router; 
