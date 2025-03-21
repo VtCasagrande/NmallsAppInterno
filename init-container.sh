@@ -16,6 +16,19 @@ if [ ! -f "/etc/nginx/conf.d/default.conf" ]; then
   cp /app/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 fi
 
+# Copiar os arquivos estáticos do frontend para o diretório do Nginx
+echo "Copiando arquivos estáticos do frontend para o Nginx..."
+mkdir -p /usr/share/nginx/html
+cp -r /app/frontend/build/* /usr/share/nginx/html/
+echo "Permissões nos arquivos do Nginx..."
+chmod -R 755 /usr/share/nginx/html
+
+# Verificar se os arquivos foram copiados corretamente
+if [ ! -f "/usr/share/nginx/html/index.html" ]; then
+  echo "ERRO: index.html não encontrado. Criando fallback..."
+  echo "<html><body><h1>Mall Recorrente</h1><p>Frontend em construção</p></body></html>" > /usr/share/nginx/html/index.html
+fi
+
 # Iniciar o servidor nginx para o frontend
 echo "Iniciando servidor nginx para o frontend..."
 nginx -g "daemon on;"
