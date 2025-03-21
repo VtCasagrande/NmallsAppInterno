@@ -1,4 +1,4 @@
-# Dockerfile simplificado para o Mall Recorrente
+# Dockerfile para o Mall Recorrente
 
 FROM node:18-alpine
 
@@ -13,8 +13,8 @@ COPY . .
 # Configurar frontend
 WORKDIR /app/frontend
 RUN npm install --no-audit --no-fund
-RUN mkdir -p build
-RUN echo "<html><body><h1>Mall Recorrente</h1><p>Frontend em construção</p></body></html>" > build/index.html
+# Construir o frontend corretamente
+RUN npm run build
 
 # Configurar backend
 WORKDIR /app/backend
@@ -29,7 +29,7 @@ WORKDIR /app
 # Tornar script executável
 RUN chmod +x init-container.sh
 
-EXPOSE 3000 5000
+EXPOSE 80 5000
 
 # Executar script de inicialização
 CMD ["./init-container.sh"] 

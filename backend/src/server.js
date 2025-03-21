@@ -5,6 +5,7 @@ const authRoutes = require('./routes/authRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const productRoutes = require('./routes/productRoutes');
 const recurrenceRoutes = require('./routes/recurrenceRoutes');
+const path = require('path');
 
 // Inicializar o app
 const app = express();
@@ -16,19 +17,19 @@ app.use(cors());
 // Conectar ao Banco de Dados
 connectDB();
 
-// Rota de teste
-app.get('/', (req, res) => {
-  res.json({ message: "API do Sistema de Recorrência", version: "1.0.0" });
-});
-
 // Rotas da API
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/recurrences', recurrenceRoutes);
 
-// Middleware para rota não encontrada
-app.use((req, res) => {
+// Rota de teste/health check
+app.get('/api', (req, res) => {
+  res.json({ message: "API do Sistema de Recorrência", version: "1.0.0" });
+});
+
+// Middleware para rota não encontrada para rotas de API
+app.use('/api/*', (req, res) => {
   res.status(404).json({ message: `Rota não encontrada - ${req.originalUrl}` });
 });
 
